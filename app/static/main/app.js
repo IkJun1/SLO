@@ -19,6 +19,15 @@ const state = {
     trashItems: [],
     selectedTrashKey: null,
     selectedEntry: null,
+    draggingEntry: null,
+    dragOverFolderPath: null,
+    dragDropInFlight: false,
+    dragExpandTimer: null,
+    dragExpandFolderPath: null,
+    dragOverRoot: false,
+    treeInlineRename: null,
+    treeInlineDeleteKey: null,
+    treeInlineBusy: false,
     quickActionMode: null,
     pendingDelete: null,
     chatSessions: [],
@@ -338,12 +347,22 @@ async function openImagePicker() {
 
 function openRenameAction() {
     const selected = state.selectedEntry;
-    if (!selected || (selected.type !== 'image' && selected.type !== 'doc')) {
-        showSelectedStatus('Select a document or image to rename.', 'error');
+    if (!selected || (selected.type !== 'image' && selected.type !== 'doc' && selected.type !== 'folder')) {
+        showSelectedStatus('Select a document, image, or folder to rename.', 'error');
         return;
     }
 
-    openQuickAction(selected.type === 'doc' ? 'rename-doc' : 'rename-image');
+    if (selected.type === 'doc') {
+        openQuickAction('rename-doc');
+        return;
+    }
+
+    if (selected.type === 'image') {
+        openQuickAction('rename-image');
+        return;
+    }
+
+    openQuickAction('rename-folder');
 }
 
 function hasImageFile(dataTransfer) {
@@ -454,6 +473,10 @@ function openQuickAction(mode) {
         label.textContent = 'Rename document: enter new markdown path';
         input.placeholder = 'notes/renamed-note.md';
         submitBtn.textContent = 'Rename Doc';
+    } else if (mode === 'rename-folder') {
+        label.textContent = 'Rename folder: enter new folder path';
+        input.placeholder = 'notes/renamed-folder';
+        submitBtn.textContent = 'Rename Folder';
     } else {
         label.textContent = 'Rename image: enter new path under images/';
         input.placeholder = 'images/2026/02/19/renamed.png';
@@ -487,6 +510,13 @@ function getDefaultPathForMode(mode) {
 
     if (mode === 'rename-image') {
         if (selected && selected.type === 'image') {
+            return selected.path;
+        }
+        return '';
+    }
+
+    if (mode === 'rename-folder') {
+        if (selected && selected.type === 'folder') {
             return selected.path;
         }
         return '';
@@ -592,6 +622,43 @@ async function submitQuickAction() {
             await refreshFileTree();
             await loadImagePreview(result.to_path);
             showSelectedStatus(`Renamed image: ${result.to_path}`);
+            return;
+        }
+
+        if (mode === 'rename-folder') {
+            const selected = state.selectedEntry;
+            if (!selected || selected.type !== 'folder') {
+                throw new Error('Select a folder to rename.');
+            }
+
+            let toPath = rawPath;
+            if (!toPath.includes('/')) {
+                const parent = parentPath(selected.path);
+                toPath = parent ? `${parent}/${toPath}` : toPath;
+            }
+
+            const result = await renameFolderWithPath(selected.path, toPath);
+            const fromPath = result.from_path || selected.path;
+            const movedPath = result.to_path;
+
+            state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
+            state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
+
+            if (state.selectedEntry) {
+                const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
+                if (selectedPath) {
+                    state.selectedEntry = {
+                        ...state.selectedEntry,
+                        path: selectedPath
+                    };
+                }
+            }
+
+            expandAncestors(movedPath);
+            hideQuickAction();
+            await refreshFileTree();
+            setSelectedEntry({ type: 'folder', path: movedPath, name: baseName(movedPath) });
+            showSelectedStatus(`Renamed folder: ${movedPath}`);
             return;
         }
 
@@ -874,9 +941,322 @@ function parseVaultTree(treeText) {
     return { folders, files };
 }
 
+function clearTreeDropTargetStyles() {
+    document.querySelectorAll('.tree-item.folder.drop-target').forEach((node) => {
+        node.classList.remove('drop-target');
+    });
+}
+
+function setTreeRootDropTarget(enabled) {
+    const next = Boolean(enabled);
+    if (state.dragOverRoot === next) {
+        return;
+    }
+
+    state.dragOverRoot = next;
+    const container = document.getElementById('file-tree');
+    if (!container) {
+        return;
+    }
+    container.classList.toggle('root-drop-target', next);
+}
+
+function clearTreeExpandTimer() {
+    if (state.dragExpandTimer) {
+        clearTimeout(state.dragExpandTimer);
+        state.dragExpandTimer = null;
+    }
+    state.dragExpandFolderPath = null;
+}
+
+function scheduleTreeExpandOnHover(folderPath) {
+    const nextPath = String(folderPath || '').trim();
+    if (nextPath === '' || !state.collapsedFolders.has(nextPath)) {
+        clearTreeExpandTimer();
+        return;
+    }
+
+    if (state.dragExpandFolderPath === nextPath && state.dragExpandTimer) {
+        return;
+    }
+
+    clearTreeExpandTimer();
+    state.dragExpandFolderPath = nextPath;
+    state.dragExpandTimer = setTimeout(() => {
+        state.dragExpandTimer = null;
+
+        if (!state.draggingEntry) {
+            state.dragExpandFolderPath = null;
+            return;
+        }
+
+        if (state.dragExpandFolderPath !== nextPath) {
+            return;
+        }
+
+        if (state.collapsedFolders.has(nextPath)) {
+            state.collapsedFolders.delete(nextPath);
+            renderFileTree();
+            setTreeDropTarget(nextPath);
+        }
+    }, 550);
+}
+
+function setTreeDropTarget(folderPath) {
+    const nextPath = folderPath ? String(folderPath).trim() : null;
+    if (state.dragOverFolderPath === nextPath) {
+        return;
+    }
+
+    state.dragOverFolderPath = nextPath;
+    if (nextPath !== null) {
+        setTreeRootDropTarget(false);
+    }
+    document.querySelectorAll('.tree-item.folder[data-folder-path]').forEach((node) => {
+        node.classList.toggle('drop-target', nextPath !== null && node.dataset.folderPath === nextPath);
+    });
+}
+
+function clearTreeDragState() {
+    state.draggingEntry = null;
+    state.dragOverFolderPath = null;
+    state.dragOverRoot = false;
+
+    clearTreeExpandTimer();
+    setTreeRootDropTarget(false);
+    clearTreeDropTargetStyles();
+    document.querySelectorAll('.tree-item.dragging').forEach((node) => {
+        node.classList.remove('dragging');
+    });
+}
+
+function normalizeDropFolderPath(entry, targetFolderPath) {
+    const target = String(targetFolderPath || '').trim();
+    if (target !== '') {
+        return target;
+    }
+
+    if (!entry) {
+        return null;
+    }
+
+    if (entry.type === 'image') {
+        return 'images';
+    }
+
+    return '';
+}
+
+function moveTargetPathForFolder(entry, targetFolderPath) {
+    if (!entry || !entry.path) {
+        return null;
+    }
+
+    const target = normalizeDropFolderPath(entry, targetFolderPath);
+    if (target === null) {
+        return null;
+    }
+
+    const name = baseName(entry.path);
+    if (!name) {
+        return null;
+    }
+
+    if (target === '') {
+        return name;
+    }
+
+    return `${target}/${name}`;
+}
+
+function canDropEntryIntoFolder(entry, targetFolderPath) {
+    if (!entry) {
+        return false;
+    }
+
+    const target = normalizeDropFolderPath(entry, targetFolderPath);
+    if (target === null) {
+        return false;
+    }
+
+    if (entry.type === 'image' && target !== 'images' && !target.startsWith('images/')) {
+        return false;
+    }
+
+    if (entry.type === 'folder') {
+        if (target === entry.path || target.startsWith(`${entry.path}/`)) {
+            return false;
+        }
+    }
+
+    const nextPath = moveTargetPathForFolder(entry, target);
+    if (!nextPath || nextPath === entry.path) {
+        return false;
+    }
+
+    return true;
+}
+
+async function moveEntryToFolder(entry, targetFolderPath) {
+    if (!entry || state.dragDropInFlight) {
+        return;
+    }
+
+    if (!canDropEntryIntoFolder(entry, targetFolderPath)) {
+        return;
+    }
+
+    const targetPath = moveTargetPathForFolder(entry, targetFolderPath);
+    if (!targetPath) {
+        return;
+    }
+
+    state.dragDropInFlight = true;
+
+    try {
+        if (entry.type === 'doc') {
+            const selectedDoc = state.docs.find((doc) => doc.path === entry.path);
+            const docId = entry.id || (selectedDoc && selectedDoc.id);
+            if (!docId) {
+                throw new Error('Document id not found. Reload and try again.');
+            }
+
+            const result = await renameDocWithPath(docId, targetPath);
+            const movedPath = String(result.to_path || targetPath);
+            state.currentDocPath = remapMovedPath(state.currentDocPath, entry.path, movedPath) || null;
+
+            expandAncestors(movedPath);
+            await refreshFileTree();
+
+            if (state.currentDocPath === movedPath) {
+                await loadDoc(movedPath);
+            } else {
+                const refreshedDoc = state.docs.find((doc) => doc.path === movedPath);
+                setSelectedEntry({
+                    type: 'doc',
+                    id: docId,
+                    path: movedPath,
+                    name: (refreshedDoc && (refreshedDoc.title || baseName(movedPath))) || baseName(movedPath)
+                });
+            }
+
+            showSelectedStatus(`Moved document: ${movedPath}`);
+            return;
+        }
+
+        if (entry.type === 'image') {
+            const result = await renameImageWithPath(entry.path, targetPath);
+            const movedPath = String(result.to_path || targetPath);
+            state.currentImagePath = remapMovedPath(state.currentImagePath, entry.path, movedPath) || null;
+
+            expandAncestors(movedPath);
+            await refreshFileTree();
+
+            if (state.currentImagePath === movedPath) {
+                await loadImagePreview(movedPath);
+            } else {
+                setSelectedEntry({ type: 'image', path: movedPath, name: baseName(movedPath) });
+            }
+
+            showSelectedStatus(`Moved image: ${movedPath}`);
+            return;
+        }
+
+        if (entry.type === 'folder') {
+            const result = await renameFolderWithPath(entry.path, targetPath);
+            const fromPath = String(result.from_path || entry.path);
+            const movedPath = String(result.to_path || targetPath);
+
+            state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
+            state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
+
+            if (state.selectedEntry) {
+                const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
+                if (selectedPath) {
+                    state.selectedEntry = {
+                        ...state.selectedEntry,
+                        path: selectedPath
+                    };
+                }
+            }
+
+            expandAncestors(movedPath);
+            await refreshFileTree();
+            setSelectedEntry({ type: 'folder', path: movedPath, name: baseName(movedPath) });
+            showSelectedStatus(`Moved folder: ${movedPath}`);
+        }
+    } catch (err) {
+        console.error(err);
+        showSelectedStatus((err && err.message) || 'Move failed.', 'error');
+    } finally {
+        state.dragDropInFlight = false;
+        clearTreeDragState();
+    }
+}
+
 function renderFileTree() {
     const container = document.getElementById('file-tree');
     container.innerHTML = '';
+    container.ondragover = (event) => {
+        if (!state.draggingEntry) {
+            return;
+        }
+
+        const target = event.target;
+        const folderItem = target instanceof Element ? target.closest('.tree-item.folder[data-folder-path]') : null;
+        const anyItem = target instanceof Element ? target.closest('.tree-item') : null;
+        if (!folderItem) {
+            setTreeDropTarget(null);
+            clearTreeExpandTimer();
+
+            if (!anyItem && canDropEntryIntoFolder(state.draggingEntry, '')) {
+                event.preventDefault();
+                if (event.dataTransfer) {
+                    event.dataTransfer.dropEffect = 'move';
+                }
+                setTreeRootDropTarget(true);
+            } else {
+                setTreeRootDropTarget(false);
+            }
+        }
+    };
+    container.ondrop = (event) => {
+        if (!state.draggingEntry) {
+            return;
+        }
+
+        const target = event.target;
+        const folderItem = target instanceof Element ? target.closest('.tree-item.folder[data-folder-path]') : null;
+        const anyItem = target instanceof Element ? target.closest('.tree-item') : null;
+        if (folderItem) {
+            return;
+        }
+
+        const draggedEntry = { ...state.draggingEntry };
+        clearTreeDragState();
+
+        if (anyItem || !canDropEntryIntoFolder(draggedEntry, '')) {
+            event.preventDefault();
+            return;
+        }
+
+        event.preventDefault();
+        void moveEntryToFolder(draggedEntry, '');
+    };
+    container.ondragleave = (event) => {
+        if (!state.draggingEntry) {
+            return;
+        }
+
+        const related = event.relatedTarget;
+        if (related instanceof Node && container.contains(related)) {
+            return;
+        }
+
+        setTreeDropTarget(null);
+        setTreeRootDropTarget(false);
+        clearTreeExpandTimer();
+    };
 
     const entries = buildExplorerEntries(state.docs, state.imageFiles);
     entries.forEach((entry) => {
@@ -896,9 +1276,85 @@ function renderFileTree() {
             item.classList.add('active');
         }
 
+        const isDraggingThis =
+            state.draggingEntry &&
+            state.draggingEntry.type === entry.type &&
+            state.draggingEntry.path === entry.path;
+        if (isDraggingThis) {
+            item.classList.add('dragging');
+        }
+
         item.style.paddingLeft = `${16 + entry.depth * 14}px`;
+        item.draggable = true;
+
+        item.addEventListener('dragstart', (event) => {
+            if (state.dragDropInFlight) {
+                event.preventDefault();
+                return;
+            }
+
+            state.draggingEntry = {
+                type: entry.type,
+                id: entry.id || null,
+                path: entry.path,
+                name: entry.name
+            };
+            setTreeDropTarget(null);
+            setTreeRootDropTarget(false);
+            clearTreeExpandTimer();
+            item.classList.add('dragging');
+
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', `${entry.type}:${entry.path}`);
+            }
+        });
+
+        item.addEventListener('dragend', () => {
+            clearTreeDragState();
+        });
 
         if (entry.type === 'folder') {
+            item.dataset.folderPath = entry.path;
+            if (state.dragOverFolderPath === entry.path) {
+                item.classList.add('drop-target');
+            }
+
+            item.addEventListener('dragover', (event) => {
+                const dragged = state.draggingEntry;
+                if (!dragged) {
+                    return;
+                }
+
+                if (!canDropEntryIntoFolder(dragged, entry.path)) {
+                    if (state.dragOverFolderPath === entry.path) {
+                        setTreeDropTarget(null);
+                    }
+                    clearTreeExpandTimer();
+                    return;
+                }
+
+                event.preventDefault();
+                if (event.dataTransfer) {
+                    event.dataTransfer.dropEffect = 'move';
+                }
+                setTreeDropTarget(entry.path);
+                scheduleTreeExpandOnHover(entry.path);
+            });
+
+            item.addEventListener('drop', (event) => {
+                const dragged = state.draggingEntry;
+                if (!dragged || !canDropEntryIntoFolder(dragged, entry.path)) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                const draggedEntry = { ...dragged };
+                clearTreeDragState();
+                void moveEntryToFolder(draggedEntry, entry.path);
+            });
+
             const toggle = document.createElement('i');
             toggle.dataset.lucide = state.collapsedFolders.has(entry.path) ? 'chevron-right' : 'chevron-down';
             toggle.className = 'tree-toggle';
@@ -1021,6 +1477,43 @@ async function renameImageWithPath(fromPath, toPath) {
     }
 
     return body;
+}
+
+async function renameFolderWithPath(fromPath, toPath) {
+    const res = await fetch(apiPath('/folders/move'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            from_path: fromPath,
+            to_path: toPath,
+            overwrite: false
+        })
+    });
+
+    const body = await safeJson(res);
+    if (!res.ok) {
+        throw new Error((body && body.error && body.error.message) || 'Failed to rename folder.');
+    }
+
+    return body;
+}
+
+function remapMovedPath(path, fromPrefix, toPrefix) {
+    const original = String(path || '').trim();
+    if (!original || !fromPrefix || !toPrefix) {
+        return original;
+    }
+
+    if (original === fromPrefix) {
+        return toPrefix;
+    }
+
+    const withSlash = `${fromPrefix}/`;
+    if (original.startsWith(withSlash)) {
+        return `${toPrefix}${original.slice(fromPrefix.length)}`;
+    }
+
+    return original;
 }
 
 async function loadDoc(path) {
