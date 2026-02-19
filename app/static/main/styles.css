@@ -253,12 +253,10 @@ body {
     cursor: pointer;
     font-size: 13px;
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
 }
 
 .tree-item[draggable="true"] {
@@ -302,6 +300,108 @@ body {
 
 .tree-item.folder.active {
     color: #c7d7ff;
+}
+
+.tree-item-name-wrap {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.tree-item-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-item-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+.tree-item:hover .tree-item-actions,
+.tree-item.active .tree-item-actions,
+.tree-item.has-inline-state .tree-item-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tree-item-icon-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.tree-item-icon-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.tree-item-icon-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    background-color: var(--bg-input);
+}
+
+.tree-item-icon-btn.danger:hover {
+    color: #ff8e8e;
+    border-color: rgba(255, 82, 82, 0.4);
+    background-color: rgba(255, 82, 82, 0.12);
+}
+
+.tree-inline-input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--accent-color);
+    border-radius: 6px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 5px 8px;
+    outline: none;
+}
+
+.tree-inline-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 10px;
+    line-height: 1;
+    padding: 5px 7px;
+    cursor: pointer;
+}
+
+.tree-inline-btn:hover {
+    border-color: var(--accent-color);
+}
+
+.tree-inline-btn-primary {
+    border-color: rgba(124, 77, 255, 0.6);
+    background-color: rgba(124, 77, 255, 0.15);
+}
+
+.tree-inline-btn-danger {
+    border-color: rgba(255, 82, 82, 0.4);
+    background-color: rgba(255, 82, 82, 0.14);
+    color: #ffb3b3;
+}
+
+.tree-inline-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 
 .tree-item.folder.drop-target {

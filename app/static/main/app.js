@@ -209,14 +209,37 @@ function switchTab(tabId) {
 }
 
 function setupMarkdownView() {
-    document.getElementById('create-doc-btn').addEventListener('click', () => openQuickAction('create-doc'));
-    document.getElementById('create-folder-btn').addEventListener('click', () => openQuickAction('create-folder'));
-    document.getElementById('rename-entry-btn').addEventListener('click', () => openRenameAction());
-    document.getElementById('delete-entry-btn').addEventListener('click', () => openDeleteConfirm('selected'));
-    document.getElementById('delete-doc-btn').addEventListener('click', () => openDeleteConfirm('current-doc'));
-    document.getElementById('insert-image-btn').addEventListener('click', () => {
-        void openImagePicker();
-    });
+    const createDocBtn = document.getElementById('create-doc-btn');
+    if (createDocBtn) {
+        createDocBtn.addEventListener('click', () => openQuickAction('create-doc'));
+    }
+
+    const createFolderBtn = document.getElementById('create-folder-btn');
+    if (createFolderBtn) {
+        createFolderBtn.addEventListener('click', () => openQuickAction('create-folder'));
+    }
+
+    const renameEntryBtn = document.getElementById('rename-entry-btn');
+    if (renameEntryBtn) {
+        renameEntryBtn.addEventListener('click', () => openRenameAction());
+    }
+
+    const deleteEntryBtn = document.getElementById('delete-entry-btn');
+    if (deleteEntryBtn) {
+        deleteEntryBtn.addEventListener('click', () => openDeleteConfirm('selected'));
+    }
+
+    const deleteDocBtn = document.getElementById('delete-doc-btn');
+    if (deleteDocBtn) {
+        deleteDocBtn.addEventListener('click', () => openDeleteConfirm('current-doc'));
+    }
+
+    const insertImageBtn = document.getElementById('insert-image-btn');
+    if (insertImageBtn) {
+        insertImageBtn.addEventListener('click', () => {
+            void openImagePicker();
+        });
+    }
 
     document.getElementById('quick-submit-btn').addEventListener('click', submitQuickAction);
     document.getElementById('quick-cancel-btn').addEventListener('click', hideQuickAction);
@@ -828,7 +851,7 @@ async function refreshFileTree() {
                     state.selectedEntry = {
                         ...state.selectedEntry,
                         id: selectedDoc.id,
-                        name: selectedDoc.title || baseName(selectedDoc.path)
+                        name: baseName(selectedDoc.path)
                     };
                 }
             } else if (state.selectedEntry.type === 'image') {
@@ -851,6 +874,18 @@ async function refreshFileTree() {
             }
         }
 
+        if (state.treeInlineRename) {
+            const renameType = String(state.treeInlineRename.type || '');
+            const renamePath = String(state.treeInlineRename.path || '');
+            if (!treeEntryExists(renameType, renamePath)) {
+                state.treeInlineRename = null;
+            }
+        }
+
+        if (state.treeInlineDeleteKey && !treeEntryExistsByKey(state.treeInlineDeleteKey)) {
+            state.treeInlineDeleteKey = null;
+        }
+
         renderFileTree();
         updateSelectedLabel();
     } catch (err) {
@@ -871,7 +906,7 @@ function buildExplorerEntries(docs, imagePaths) {
         type: 'doc',
         id: doc.id,
         path: doc.path,
-        name: doc.title || baseName(doc.path),
+        name: baseName(doc.path),
         depth: doc.path.split('/').length - 1
     }));
 
@@ -1097,6 +1132,206 @@ function canDropEntryIntoFolder(entry, targetFolderPath) {
     return true;
 }
 
+function treeEntryKey(entry) {
+    if (!entry || !entry.type || !entry.path) {
+        return '';
+    }
+    return `${entry.type}:${entry.path}`;
+}
+
+function treeEntryExists(type, path) {
+    if (!type || !path) {
+        return false;
+    }
+    if (type === 'doc') {
+        return state.docs.some((doc) => doc.path === path);
+    }
+    if (type === 'image') {
+        return state.imageFiles.some((imagePath) => imagePath === path);
+    }
+    if (type === 'folder') {
+        return state.folders.some((folderPath) => folderPath === path);
+    }
+    return false;
+}
+
+function treeEntryExistsByKey(key) {
+    const raw = String(key || '');
+    const sep = raw.indexOf(':');
+    if (sep <= 0) {
+        return false;
+    }
+
+    const type = raw.slice(0, sep);
+    const path = raw.slice(sep + 1);
+    return treeEntryExists(type, path);
+}
+
+function inlineRenameDefaultValue(entry) {
+    if (!entry || !entry.path) {
+        return '';
+    }
+
+    const leaf = baseName(entry.path);
+    if (entry.type === 'doc') {
+        return leaf.replace(/\.md$/i, '');
+    }
+    return leaf;
+}
+
+function buildPathFromInlineRename(entry, rawLabel) {
+    if (!entry || !entry.path) {
+        return null;
+    }
+
+    const sanitized = String(rawLabel || '').replace(/[\\/]/g, ' ').trim();
+    if (sanitized === '') {
+        return null;
+    }
+
+    const parent = parentPath(entry.path);
+    if (entry.type === 'doc') {
+        const filename = sanitized.toLowerCase().endsWith('.md') ? sanitized : `${sanitized}.md`;
+        return parent ? `${parent}/${filename}` : filename;
+    }
+
+    if (entry.type === 'image') {
+        const oldExtIdx = String(entry.path).lastIndexOf('.');
+        const oldExt = oldExtIdx >= 0 ? String(entry.path).slice(oldExtIdx) : '';
+        const hasExt = /\.[^./\\]+$/.test(sanitized);
+        const filename = oldExt && !hasExt ? `${sanitized}${oldExt}` : sanitized;
+        return parent ? `${parent}/${filename}` : filename;
+    }
+
+    return parent ? `${parent}/${sanitized}` : sanitized;
+}
+
+function startTreeInlineRename(entry) {
+    const key = treeEntryKey(entry);
+    if (!key) {
+        return;
+    }
+
+    clearTreeDragState();
+    state.treeInlineDeleteKey = null;
+    state.treeInlineRename = {
+        key,
+        type: entry.type,
+        id: entry.id || null,
+        path: entry.path,
+        value: inlineRenameDefaultValue(entry),
+        shouldFocus: true,
+    };
+    renderFileTree();
+}
+
+function cancelTreeInlineRename() {
+    if (!state.treeInlineRename) {
+        return;
+    }
+    state.treeInlineRename = null;
+    renderFileTree();
+}
+
+function startTreeInlineDelete(entry) {
+    const key = treeEntryKey(entry);
+    if (!key) {
+        return;
+    }
+
+    clearTreeDragState();
+    state.treeInlineRename = null;
+    state.treeInlineDeleteKey = key;
+    renderFileTree();
+}
+
+function cancelTreeInlineDelete() {
+    if (!state.treeInlineDeleteKey) {
+        return;
+    }
+    state.treeInlineDeleteKey = null;
+    renderFileTree();
+}
+
+async function moveEntryToPath(entry, targetPath) {
+    if (!entry || !targetPath) {
+        return null;
+    }
+
+    if (entry.type === 'doc') {
+        const selectedDoc = state.docs.find((doc) => doc.path === entry.path);
+        const docId = entry.id || (selectedDoc && selectedDoc.id);
+        if (!docId) {
+            throw new Error('Document id not found. Reload and try again.');
+        }
+
+        const result = await renameDocWithPath(docId, targetPath);
+        const movedPath = String(result.to_path || targetPath);
+        state.currentDocPath = remapMovedPath(state.currentDocPath, entry.path, movedPath) || null;
+
+        expandAncestors(movedPath);
+        await refreshFileTree();
+
+        if (state.currentDocPath === movedPath) {
+            await loadDoc(movedPath);
+        } else {
+            const refreshedDoc = state.docs.find((doc) => doc.path === movedPath);
+            setSelectedEntry({
+                type: 'doc',
+                id: docId,
+                path: movedPath,
+                name: (refreshedDoc && baseName(refreshedDoc.path)) || baseName(movedPath)
+            });
+        }
+
+        return { type: 'doc', path: movedPath };
+    }
+
+    if (entry.type === 'image') {
+        const result = await renameImageWithPath(entry.path, targetPath);
+        const movedPath = String(result.to_path || targetPath);
+        state.currentImagePath = remapMovedPath(state.currentImagePath, entry.path, movedPath) || null;
+
+        expandAncestors(movedPath);
+        await refreshFileTree();
+
+        if (state.currentImagePath === movedPath) {
+            await loadImagePreview(movedPath);
+        } else {
+            setSelectedEntry({ type: 'image', path: movedPath, name: baseName(movedPath) });
+        }
+
+        return { type: 'image', path: movedPath };
+    }
+
+    if (entry.type === 'folder') {
+        const result = await renameFolderWithPath(entry.path, targetPath);
+        const fromPath = String(result.from_path || entry.path);
+        const movedPath = String(result.to_path || targetPath);
+
+        state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
+        state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
+
+        if (state.selectedEntry) {
+            const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
+            if (selectedPath) {
+                state.selectedEntry = {
+                    ...state.selectedEntry,
+                    path: selectedPath
+                };
+            }
+        }
+
+        expandAncestors(movedPath);
+        await refreshFileTree();
+        setSelectedEntry({ type: 'folder', path: movedPath, name: baseName(movedPath) });
+
+        return { type: 'folder', path: movedPath };
+    }
+
+    return null;
+}
+
 async function moveEntryToFolder(entry, targetFolderPath) {
     if (!entry || state.dragDropInFlight) {
         return;
@@ -1114,83 +1349,85 @@ async function moveEntryToFolder(entry, targetFolderPath) {
     state.dragDropInFlight = true;
 
     try {
-        if (entry.type === 'doc') {
-            const selectedDoc = state.docs.find((doc) => doc.path === entry.path);
-            const docId = entry.id || (selectedDoc && selectedDoc.id);
-            if (!docId) {
-                throw new Error('Document id not found. Reload and try again.');
-            }
-
-            const result = await renameDocWithPath(docId, targetPath);
-            const movedPath = String(result.to_path || targetPath);
-            state.currentDocPath = remapMovedPath(state.currentDocPath, entry.path, movedPath) || null;
-
-            expandAncestors(movedPath);
-            await refreshFileTree();
-
-            if (state.currentDocPath === movedPath) {
-                await loadDoc(movedPath);
-            } else {
-                const refreshedDoc = state.docs.find((doc) => doc.path === movedPath);
-                setSelectedEntry({
-                    type: 'doc',
-                    id: docId,
-                    path: movedPath,
-                    name: (refreshedDoc && (refreshedDoc.title || baseName(movedPath))) || baseName(movedPath)
-                });
-            }
-
-            showSelectedStatus(`Moved document: ${movedPath}`);
+        const moved = await moveEntryToPath(entry, targetPath);
+        if (!moved) {
             return;
         }
 
-        if (entry.type === 'image') {
-            const result = await renameImageWithPath(entry.path, targetPath);
-            const movedPath = String(result.to_path || targetPath);
-            state.currentImagePath = remapMovedPath(state.currentImagePath, entry.path, movedPath) || null;
-
-            expandAncestors(movedPath);
-            await refreshFileTree();
-
-            if (state.currentImagePath === movedPath) {
-                await loadImagePreview(movedPath);
-            } else {
-                setSelectedEntry({ type: 'image', path: movedPath, name: baseName(movedPath) });
-            }
-
-            showSelectedStatus(`Moved image: ${movedPath}`);
-            return;
-        }
-
-        if (entry.type === 'folder') {
-            const result = await renameFolderWithPath(entry.path, targetPath);
-            const fromPath = String(result.from_path || entry.path);
-            const movedPath = String(result.to_path || targetPath);
-
-            state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
-            state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
-
-            if (state.selectedEntry) {
-                const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
-                if (selectedPath) {
-                    state.selectedEntry = {
-                        ...state.selectedEntry,
-                        path: selectedPath
-                    };
-                }
-            }
-
-            expandAncestors(movedPath);
-            await refreshFileTree();
-            setSelectedEntry({ type: 'folder', path: movedPath, name: baseName(movedPath) });
-            showSelectedStatus(`Moved folder: ${movedPath}`);
-        }
+        const label = moved.type === 'folder' ? 'folder' : (moved.type === 'image' ? 'image' : 'document');
+        showSelectedStatus(`Moved ${label}: ${moved.path}`);
     } catch (err) {
         console.error(err);
         showSelectedStatus((err && err.message) || 'Move failed.', 'error');
     } finally {
         state.dragDropInFlight = false;
         clearTreeDragState();
+    }
+}
+
+async function submitTreeInlineRename(entry) {
+    const rename = state.treeInlineRename;
+    if (!rename || state.treeInlineBusy || !entry) {
+        return;
+    }
+
+    const toPath = buildPathFromInlineRename(entry, rename.value);
+    if (!toPath) {
+        showSelectedStatus('Name is required.', 'error');
+        return;
+    }
+
+    if (toPath === entry.path) {
+        cancelTreeInlineRename();
+        return;
+    }
+
+    state.treeInlineBusy = true;
+    state.treeInlineRename = null;
+
+    try {
+        const moved = await moveEntryToPath(entry, toPath);
+        if (!moved) {
+            return;
+        }
+        const label = moved.type === 'folder' ? 'folder' : (moved.type === 'image' ? 'image' : 'document');
+        showSelectedStatus(`Renamed ${label}: ${moved.path}`);
+    } catch (err) {
+        console.error(err);
+        showSelectedStatus((err && err.message) || 'Rename failed.', 'error');
+    } finally {
+        state.treeInlineBusy = false;
+        renderFileTree();
+    }
+}
+
+async function submitTreeInlineDelete(entry) {
+    if (!entry || state.treeInlineBusy) {
+        return;
+    }
+
+    state.treeInlineBusy = true;
+    state.treeInlineDeleteKey = null;
+
+    try {
+        if (entry.type === 'folder') {
+            await deleteFolderNow(entry.path);
+            showSelectedStatus(`Deleted folder: ${entry.path}`);
+        } else if (entry.type === 'image') {
+            await deleteImageNow(entry.path);
+            showSelectedStatus(`Deleted image: ${entry.path}`);
+        } else {
+            await deleteDocNow(entry.path);
+            showSelectedStatus(`Deleted document: ${entry.path}`);
+        }
+
+        await refreshFileTree();
+    } catch (err) {
+        console.error(err);
+        showSelectedStatus((err && err.message) || 'Delete failed.', 'error');
+    } finally {
+        state.treeInlineBusy = false;
+        renderFileTree();
     }
 }
 
@@ -1266,6 +1503,14 @@ function renderFileTree() {
 
         const item = document.createElement('div');
         item.className = `tree-item ${entry.type}`;
+        const key = treeEntryKey(entry);
+        const renameState = state.treeInlineRename;
+        const isInlineRename = Boolean(renameState && renameState.key === key);
+        const isInlineDelete = state.treeInlineDeleteKey === key;
+        const hasInlineState = isInlineRename || isInlineDelete;
+        if (hasInlineState) {
+            item.classList.add('has-inline-state');
+        }
 
         const active =
             state.selectedEntry &&
@@ -1285,7 +1530,7 @@ function renderFileTree() {
         }
 
         item.style.paddingLeft = `${16 + entry.depth * 14}px`;
-        item.draggable = true;
+        item.draggable = !hasInlineState && !state.treeInlineBusy;
 
         item.addEventListener('dragstart', (event) => {
             if (state.dragDropInFlight) {
@@ -1376,21 +1621,164 @@ function renderFileTree() {
         icon.style.width = '14px';
         item.appendChild(icon);
 
-        const text = document.createElement('span');
-        text.textContent = entry.name;
-        text.title = entry.path;
-        item.appendChild(text);
+        const nameWrap = document.createElement('div');
+        nameWrap.className = 'tree-item-name-wrap';
+
+        if (isInlineRename && renameState) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'tree-inline-input';
+            input.value = String(renameState.value || '');
+            input.title = entry.path;
+            input.placeholder = 'Rename...';
+
+            input.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+            input.addEventListener('input', () => {
+                if (!state.treeInlineRename || state.treeInlineRename.key !== key) {
+                    return;
+                }
+                state.treeInlineRename = {
+                    ...state.treeInlineRename,
+                    value: input.value,
+                    shouldFocus: false,
+                };
+            });
+            input.addEventListener('keydown', (event) => {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void submitTreeInlineRename(entry);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelTreeInlineRename();
+                }
+            });
+
+            nameWrap.appendChild(input);
+
+            if (renameState.shouldFocus) {
+                requestAnimationFrame(() => {
+                    input.focus();
+                    input.select();
+                });
+                state.treeInlineRename = {
+                    ...state.treeInlineRename,
+                    shouldFocus: false,
+                };
+            }
+        } else {
+            const text = document.createElement('span');
+            text.className = 'tree-item-name';
+            text.textContent = entry.name;
+            text.title = entry.path;
+            nameWrap.appendChild(text);
+        }
+
+        item.appendChild(nameWrap);
+
+        const actions = document.createElement('div');
+        actions.className = 'tree-item-actions';
+        if (hasInlineState) {
+            actions.classList.add('show');
+        }
+
+        if (isInlineRename) {
+            const saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'tree-inline-btn tree-inline-btn-primary';
+            saveBtn.textContent = 'Save';
+            saveBtn.disabled = state.treeInlineBusy;
+            saveBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                void submitTreeInlineRename(entry);
+            });
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'tree-inline-btn';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.disabled = state.treeInlineBusy;
+            cancelBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                cancelTreeInlineRename();
+            });
+
+            actions.appendChild(saveBtn);
+            actions.appendChild(cancelBtn);
+        } else if (isInlineDelete) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'tree-inline-btn tree-inline-btn-danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.disabled = state.treeInlineBusy;
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                void submitTreeInlineDelete(entry);
+            });
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'tree-inline-btn';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.disabled = state.treeInlineBusy;
+            cancelBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                cancelTreeInlineDelete();
+            });
+
+            actions.appendChild(deleteBtn);
+            actions.appendChild(cancelBtn);
+        } else {
+            const renameBtn = document.createElement('button');
+            renameBtn.type = 'button';
+            renameBtn.className = 'tree-item-icon-btn';
+            renameBtn.title = 'Rename';
+            renameBtn.innerHTML = '<i data-lucide="pencil"></i>';
+            renameBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                startTreeInlineRename(entry);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'tree-item-icon-btn danger';
+            deleteBtn.title = 'Delete';
+            deleteBtn.innerHTML = '<i data-lucide="trash-2"></i>';
+            deleteBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                startTreeInlineDelete(entry);
+            });
+
+            actions.appendChild(renameBtn);
+            actions.appendChild(deleteBtn);
+        }
+
+        actions.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
+        item.appendChild(actions);
 
         if (entry.type === 'doc') {
             item.addEventListener('click', () => {
+                if (hasInlineState) {
+                    return;
+                }
                 void loadDoc(entry.path);
             });
         } else if (entry.type === 'image') {
             item.addEventListener('click', () => {
+                if (hasInlineState) {
+                    return;
+                }
                 void loadImagePreview(entry.path);
             });
         } else {
             item.addEventListener('click', () => {
+                if (hasInlineState) {
+                    return;
+                }
                 if (state.collapsedFolders.has(entry.path)) {
                     state.collapsedFolders.delete(entry.path);
                 } else {
@@ -1546,7 +1934,7 @@ async function loadDoc(path) {
         renderMarkdownPreview(doc.content);
 
         expandAncestors(doc.path);
-        setSelectedEntry({ type: 'doc', id: doc.id, path: doc.path, name: doc.title || baseName(doc.path) });
+        setSelectedEntry({ type: 'doc', id: doc.id, path: doc.path, name: baseName(doc.path) });
     } catch (err) {
         console.error('Failed to load doc', err);
         showSelectedStatus('Failed to load document.', 'error');
