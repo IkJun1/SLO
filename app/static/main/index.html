@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <script src="//unpkg.com/3d-force-graph"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div id="app">
+        <nav id="sidebar">
+            <div class="nav-item active" data-tab="markdown" title="Markdown">
+                <i data-lucide="file-text"></i>
+            </div>
+            <div class="nav-item" data-tab="graph" title="Graph">
+                <i data-lucide="network"></i>
+            </div>
+            <div class="nav-item" data-tab="trash" title="Trash">
+                <i data-lucide="trash"></i>
+            </div>
+            <div class="nav-item" data-tab="llm" title="AI Assistant">
+                <i data-lucide="sparkles"></i>
+            </div>
+        </nav>
+
+        <main id="main-content">
+            <div id="view-markdown" class="view active">
+                <div class="file-explorer">
+                    <div class="explorer-header">
+                        <span class="explorer-title">VAULT</span>
+                        <div class="explorer-actions">
+                            <button id="create-doc-btn" class="explorer-action-btn" title="New document">
+                                <i data-lucide="file-plus-2"></i>
+                            </button>
+                            <button id="create-folder-btn" class="explorer-action-btn" title="New folder">
+                                <i data-lucide="folder-plus"></i>
+                            </button>
+                            <button id="rename-entry-btn" class="explorer-action-btn" title="Rename selected">
+                                <i data-lucide="pencil"></i>
+                            </button>
+                            <button id="delete-entry-btn" class="explorer-action-btn danger" title="Delete selected">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="quick-action-panel" class="quick-action-panel hidden">
+                        <p id="quick-action-label" class="quick-action-label"></p>
+                        <input id="quick-path-input" class="quick-path-input" type="text" autocomplete="off" />
+                        <div class="quick-action-buttons">
+                            <button id="quick-submit-btn" class="quick-action-btn primary" type="button">Apply</button>
+                            <button id="quick-cancel-btn" class="quick-action-btn" type="button">Cancel</button>
+                        </div>
+                    </div>
+                    <div id="confirm-panel" class="confirm-panel hidden">
+                        <p id="confirm-message" class="confirm-message"></p>
+                        <div class="quick-action-buttons">
+                            <button id="confirm-delete-btn" class="quick-action-btn danger" type="button">Delete</button>
+                            <button id="confirm-cancel-btn" class="quick-action-btn" type="button">Cancel</button>
+                        </div>
+                    </div>
+                    <p id="explorer-selected" class="explorer-selected">Selected: none</p>
+                    <div id="file-tree" class="tree-content"></div>
+                </div>
+                <div class="editor-pane">
+                    <div id="empty-state">Select a file to edit</div>
+                    <div id="editor-container" style="display: none;">
+                        <header class="editor-header">
+                            <input type="text" id="doc-title" placeholder="Untitled">
+                            <div class="editor-actions">
+                                <span id="save-status">Saved</span>
+                                <button id="insert-image-btn" title="Insert image"><i data-lucide="image-plus"></i></button>
+                                <button id="delete-doc-btn" title="Delete"><i data-lucide="trash-2"></i></button>
+                            </div>
+                        </header>
+                        <div class="editor-body">
+                            <section class="editor-column">
+                                <div class="pane-header">Editor</div>
+                                <textarea id="doc-content" placeholder="Start writing..."></textarea>
+                                <input id="image-file-input" type="file" accept="image/*" multiple hidden>
+                            </section>
+                            <div id="editor-splitter" class="panel-splitter" role="separator" aria-orientation="vertical" aria-label="Resize editor and preview panels"></div>
+                            <section class="preview-column">
+                                <div class="pane-header">Preview</div>
+                                <article id="doc-preview" class="markdown-preview"></article>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-graph" class="view">
+                <div id="graph-container"></div>
+                <div class="graph-controls">
+                    <div class="graph-actions">
+                        <button id="refresh-graph" class="graph-action-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
+                        <button id="run-embedding-sync" class="graph-action-btn"><i data-lucide="cpu"></i> Sync</button>
+                    </div>
+                    <div class="control-group">
+                        <label>Nodes</label>
+                        <span id="node-count">0</span>
+                    </div>
+                    <div class="control-group">
+                        <label>Embedding</label>
+                        <span id="embedding-sync-status">Idle</span>
+                    </div>
+                    <div class="graph-legend">
+                        <span class="legend-item"><span class="legend-dot doc"></span>Document</span>
+                        <span class="legend-item"><span class="legend-dot folder"></span>Folder</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-trash" class="view">
+                <section class="trash-panel">
+                    <header class="trash-header">
+                        <h2>Trash</h2>
+                        <button id="refresh-trash-btn" class="trash-btn" type="button">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
+                    </header>
+                    <div class="trash-body">
+                        <aside class="trash-list-wrap">
+                            <ul id="trash-list" class="trash-list"></ul>
+                        </aside>
+                        <section class="trash-detail">
+                            <p id="trash-empty-message" class="trash-empty-message">Select a trashed item to manage.</p>
+                            <div id="trash-detail-card" class="trash-detail-card hidden">
+                                <p><strong>Type:</strong> <span id="trash-detail-type"></span></p>
+                                <p><strong>Original:</strong> <span id="trash-detail-original"></span></p>
+                                <p><strong>Trash Path:</strong> <span id="trash-detail-path"></span></p>
+                                <p><strong>Deleted At:</strong> <span id="trash-detail-time"></span></p>
+                                <div class="trash-actions">
+                                    <button id="trash-restore-btn" class="trash-btn primary" type="button">Restore</button>
+                                    <button id="trash-purge-btn" class="trash-btn danger" type="button">Delete Permanently</button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </div>
+
+            <div id="view-llm" class="view">
+                <div class="chat-layout">
+                    <aside class="chat-session-panel">
+                        <header class="chat-session-header">
+                            <span class="chat-session-title">Chats</span>
+                            <button id="new-chat-btn" class="chat-session-new-btn" type="button">
+                                <i data-lucide="plus"></i>
+                                New
+                            </button>
+                        </header>
+                        <div id="chat-session-list" class="chat-session-list"></div>
+                    </aside>
+                    <div class="chat-container">
+                        <div id="chat-history">
+                            <div class="message system">
+                                <div class="message-content">Hello. I am your knowledge assistant. Ask me anything about your vault.</div>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
+                            <button id="send-chat-btn"><i data-lucide="send"></i></button>
+                        </div>
+                    </div>
+                    <div id="chat-source-splitter" class="panel-splitter" role="separator" aria-orientation="vertical" aria-label="Resize chat and source preview panels"></div>
+                    <aside class="chat-source-panel">
+                        <header class="chat-source-header">
+                            <span id="chat-source-path" class="chat-source-path">No source selected</span>
+                            <button id="chat-source-goto-btn" class="chat-source-goto-btn" type="button" disabled>
+                                <i data-lucide="arrow-up-right"></i>
+                                Go to Doc
+                            </button>
+                        </header>
+                        <article id="chat-source-preview" class="chat-source-preview markdown-preview">
+                            <p class="chat-source-empty">Click a source badge to preview the document here.</p>
+                        </article>
+                    </aside>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

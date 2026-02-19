@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SLO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/login/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <header class="login-header">
+            <h1 class="login-title">Welcome Back</h1>
+            <p class="login-subtitle">Sign in to access your vault</p>
+        </header>
+
+        <form id="login-form" class="login-form" novalidate>
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" id="username" name="username" class="form-input" placeholder="Enter your username" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+
+            <p id="login-message" class="form-message" aria-live="polite"></p>
+            <button type="submit" class="login-btn">Sign In</button>
+        </form>
+
+        <footer class="login-footer">
+            <p>Single-user mode enabled</p>
+        </footer>
+    </div>
+    <script src="/static/login/app.js"></script>
+</body>
+</html>
