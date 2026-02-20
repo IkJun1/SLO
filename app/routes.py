@@ -99,21 +99,22 @@ from app.services import (
 )
 
 
-router = APIRouter()
+public_router = APIRouter(prefix="/public")
+core_router = APIRouter()
 settings = get_settings()
 
 
-@router.get("/auth/status", response_model=AuthStatusResponse)
+@public_router.get("/auth/status", response_model=AuthStatusResponse)
 def auth_status_endpoint(db: Session = Depends(get_db)) -> AuthStatusResponse:
     return AuthStatusResponse.model_validate(get_auth_status(db))
 
 
-@router.post("/auth/signup", response_model=AuthSignupResponse, status_code=201)
+@public_router.post("/auth/signup", response_model=AuthSignupResponse, status_code=201)
 def auth_signup_endpoint(payload: AuthSignupRequest, db: Session = Depends(get_db)) -> AuthSignupResponse:
     return AuthSignupResponse.model_validate(signup_user(db, payload.model_dump()))
 
 
-@router.post("/auth/login", response_model=AuthLoginResponse)
+@public_router.post("/auth/login", response_model=AuthLoginResponse)
 def auth_login_endpoint(
     payload: AuthLoginRequest,
     response: Response,
@@ -125,14 +126,14 @@ def auth_login_endpoint(
         value=issue_auth_token(str(result["username"])),
         httponly=True,
         samesite="lax",
-        secure=True,
+        secure=not settings.is_http,
         path="/",
         max_age=AUTH_COOKIE_MAX_AGE_SECONDS,
     )
     return AuthLoginResponse.model_validate(result)
 
 
-@router.get("/tree", response_class=PlainTextResponse)
+@core_router.get("/tree", response_class=PlainTextResponse)
 def tree(
     depth: int | None = Query(default=None, ge=0),
     path_prefix: str = Query(default=""),
@@ -140,7 +141,7 @@ def tree(
     return PlainTextResponse(get_tree_text(settings, depth, path_prefix))
 
 
-@router.post("/images", response_model=ImageUploadResponse, status_code=201)
+@core_router.post("/images", response_model=ImageUploadResponse, status_code=201)
 async def upload_image_endpoint(file: UploadFile = File(...)) -> ImageUploadResponse:
     filename = str(file.filename or "").strip()
     if filename == "":
@@ -157,7 +158,7 @@ async def upload_image_endpoint(file: UploadFile = File(...)) -> ImageUploadResp
     return ImageUploadResponse.model_validate(saved)
 
 
-@router.get("/images/by-path")
+@core_router.get("/images/by-path")
 def get_image_by_path_endpoint(path: str = Query(min_length=1)) -> FileResponse:
     image = get_image_path(settings, path)
     return FileResponse(
@@ -167,19 +168,19 @@ def get_image_by_path_endpoint(path: str = Query(min_length=1)) -> FileResponse:
     )
 
 
-@router.delete("/images/by-path", response_model=ImageDeleteResponse)
+@core_router.delete("/images/by-path", response_model=ImageDeleteResponse)
 def delete_image_by_path_endpoint(path: str = Query(min_length=1)) -> ImageDeleteResponse:
     result = delete_image_from_vault(settings, path)
     return ImageDeleteResponse.model_validate(result)
 
 
-@router.post("/images/rename", response_model=ImageRenameResponse)
+@core_router.post("/images/rename", response_model=ImageRenameResponse)
 def rename_image_endpoint(payload: ImageRenameRequest) -> ImageRenameResponse:
     result = rename_image_in_vault(settings, payload.model_dump())
     return ImageRenameResponse.model_validate(result)
 
 
-@router.get("/docs/by-path", response_model=DocReadResponse)
+@core_router.get("/docs/by-path", response_model=DocReadResponse)
 def read_doc(
     path: str = Query(min_length=1),
     db: Session = Depends(get_db),
@@ -187,7 +188,7 @@ def read_doc(
     return DocReadResponse.model_validate(get_doc(db, settings, path))
 
 
-@router.get("/docs", response_model=DocListResponse)
+@core_router.get("/docs", response_model=DocListResponse)
 def list_docs_endpoint(
     path_prefix: str | None = Query(default=None),
     db: Session = Depends(get_db),
@@ -195,7 +196,7 @@ def list_docs_endpoint(
     return DocListResponse.model_validate(list_docs(db, path_prefix))
 
 
-@router.get("/docs/resolve_ids", response_model=DocIdLookupResponse)
+@core_router.get("/docs/resolve_ids", response_model=DocIdLookupResponse)
 def resolve_doc_ids_endpoint(
     path: str = Query(min_length=1),
     db: Session = Depends(get_db),
@@ -203,13 +204,13 @@ def resolve_doc_ids_endpoint(
     return DocIdLookupResponse.model_validate(lookup_doc_ids_by_path(db, settings, path))
 
 
-@router.post("/docs", response_model=DocMutationResponse, status_code=201)
+@core_router.post("/docs", response_model=DocMutationResponse, status_code=201)
 def create_doc_endpoint(payload: DocCreateRequest, db: Session = Depends(get_db)) -> DocMutationResponse:
     created = create_doc(db, settings, payload.model_dump())
     return DocMutationResponse.model_validate(created)
 
 
-@router.put("/docs/by-path", response_model=DocMutationResponse)
+@core_router.put("/docs/by-path", response_model=DocMutationResponse)
 def update_doc_endpoint(
     payload: DocUpdateRequest,
     path: str = Query(min_length=1),
@@ -219,7 +220,7 @@ def update_doc_endpoint(
     return DocMutationResponse.model_validate(updated)
 
 
-@router.post("/docs/{doc_id}/apply_patch", response_model=DocApplyPatchResponse)
+@core_router.post("/docs/{doc_id}/apply_patch", response_model=DocApplyPatchResponse)
 def apply_patch_doc_endpoint(
     doc_id: UUID,
     payload: DocApplyPatchRequest,
@@ -229,7 +230,7 @@ def apply_patch_doc_endpoint(
     return DocApplyPatchResponse.model_validate(patched)
 
 
-@router.delete("/docs/by-path", response_model=DocDeleteResponse)
+@core_router.delete("/docs/by-path", response_model=DocDeleteResponse)
 def delete_doc_endpoint(
     path: str = Query(min_length=1),
     payload: DeleteReasonRequest | None = Body(default=None),
@@ -239,31 +240,31 @@ def delete_doc_endpoint(
     return DocDeleteResponse.model_validate(deleted)
 
 
-@router.post("/docs/move", response_model=DocMoveResponse)
+@core_router.post("/docs/move", response_model=DocMoveResponse)
 def move_doc_endpoint(payload: DocMoveRequest, db: Session = Depends(get_db)) -> DocMoveResponse:
     moved = move_doc(db, settings, payload.model_dump())
     return DocMoveResponse.model_validate(moved)
 
 
-@router.post("/folders", response_model=FolderPathResponse, status_code=201)
+@core_router.post("/folders", response_model=FolderPathResponse, status_code=201)
 def create_folder_endpoint(payload: FolderCreateRequest, db: Session = Depends(get_db)) -> FolderPathResponse:
     created = create_folder(db, settings, payload.model_dump())
     return FolderPathResponse.model_validate(created)
 
 
-@router.delete("/folders", response_model=FolderPathResponse)
+@core_router.delete("/folders", response_model=FolderPathResponse)
 def delete_folder_endpoint(payload: FolderDeleteRequest, db: Session = Depends(get_db)) -> FolderPathResponse:
     deleted = delete_folder(db, settings, payload.model_dump())
     return FolderPathResponse.model_validate(deleted)
 
 
-@router.post("/folders/move", response_model=FolderMoveResponse)
+@core_router.post("/folders/move", response_model=FolderMoveResponse)
 def move_folder_endpoint(payload: FolderMoveRequest, db: Session = Depends(get_db)) -> FolderMoveResponse:
     moved = move_folder(db, settings, payload.model_dump())
     return FolderMoveResponse.model_validate(moved)
 
 
-@router.get("/search", response_model=SearchResponse)
+@core_router.get("/search", response_model=SearchResponse)
 def search_endpoint(
     q: str = Query(min_length=1),
     mode: str = Query(default="keyword"),
@@ -286,7 +287,7 @@ def search_endpoint(
     return SearchResponse.model_validate(result)
 
 
-@router.get("/graph3d", response_model=GraphResponse)
+@core_router.get("/graph3d", response_model=GraphResponse)
 def graph_endpoint(
     layout: str = Query(default="pca"),
     include_edges: bool = Query(default=False),
@@ -304,7 +305,7 @@ def graph_endpoint(
     return GraphResponse.model_validate(result)
 
 
-@router.get("/sync/changes", response_model=SyncResponse)
+@core_router.get("/sync/changes", response_model=SyncResponse)
 def sync_changes_endpoint(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
@@ -320,12 +321,12 @@ def sync_changes_endpoint(
     return SyncResponse.model_validate(result)
 
 
-@router.get("/embeddings/status", response_model=EmbeddingSyncStatusResponse)
+@core_router.get("/embeddings/status", response_model=EmbeddingSyncStatusResponse)
 def embedding_sync_status_endpoint(db: Session = Depends(get_db)) -> EmbeddingSyncStatusResponse:
     return EmbeddingSyncStatusResponse.model_validate(get_embedding_sync_status(db, settings))
 
 
-@router.post("/embeddings/run", response_model=EmbeddingSyncRunResponse)
+@core_router.post("/embeddings/run", response_model=EmbeddingSyncRunResponse)
 def embedding_sync_run_endpoint(
     payload: EmbeddingSyncRunRequest | None = Body(default=None),
     db: Session = Depends(get_db),
@@ -340,12 +341,12 @@ def embedding_sync_run_endpoint(
     return EmbeddingSyncRunResponse.model_validate(result)
 
 
-@router.get("/chat/sessions", response_model=ChatSessionListResponse)
+@core_router.get("/chat/sessions", response_model=ChatSessionListResponse)
 def list_chat_sessions_endpoint(db: Session = Depends(get_db)) -> ChatSessionListResponse:
     return ChatSessionListResponse.model_validate(list_chat_sessions(db))
 
 
-@router.post("/chat/sessions", response_model=ChatSessionSummaryResponse, status_code=201)
+@core_router.post("/chat/sessions", response_model=ChatSessionSummaryResponse, status_code=201)
 def create_chat_session_endpoint(
     payload: ChatSessionCreateRequest | None = Body(default=None),
     db: Session = Depends(get_db),
@@ -354,7 +355,7 @@ def create_chat_session_endpoint(
     return ChatSessionSummaryResponse.model_validate(create_chat_session(db, request_payload.model_dump()))
 
 
-@router.patch("/chat/sessions/{session_id}", response_model=ChatSessionSummaryResponse)
+@core_router.patch("/chat/sessions/{session_id}", response_model=ChatSessionSummaryResponse)
 def update_chat_session_endpoint(
     session_id: str,
     payload: ChatSessionUpdateRequest,
@@ -363,17 +364,17 @@ def update_chat_session_endpoint(
     return ChatSessionSummaryResponse.model_validate(update_chat_session(db, session_id, payload.model_dump()))
 
 
-@router.delete("/chat/sessions/{session_id}", response_model=ChatDeleteResponse)
+@core_router.delete("/chat/sessions/{session_id}", response_model=ChatDeleteResponse)
 def delete_chat_session_endpoint(session_id: str, db: Session = Depends(get_db)) -> ChatDeleteResponse:
     return ChatDeleteResponse.model_validate(delete_chat_session(db, session_id))
 
 
-@router.get("/chat/sessions/{session_id}/messages", response_model=ChatMessageListResponse)
+@core_router.get("/chat/sessions/{session_id}/messages", response_model=ChatMessageListResponse)
 def get_chat_session_messages_endpoint(session_id: str, db: Session = Depends(get_db)) -> ChatMessageListResponse:
     return ChatMessageListResponse.model_validate(get_chat_session_messages(db, session_id))
 
 
-@router.patch("/chat/messages/{message_id}", response_model=ChatMessageItemResponse)
+@core_router.patch("/chat/messages/{message_id}", response_model=ChatMessageItemResponse)
 def update_chat_message_endpoint(
     message_id: str,
     payload: ChatMessageUpdateRequest,
@@ -382,29 +383,29 @@ def update_chat_message_endpoint(
     return ChatMessageItemResponse.model_validate(update_chat_message(db, settings, message_id, payload.model_dump()))
 
 
-@router.delete("/chat/messages/{message_id}", response_model=ChatDeleteResponse)
+@core_router.delete("/chat/messages/{message_id}", response_model=ChatDeleteResponse)
 def delete_chat_message_endpoint(message_id: str, db: Session = Depends(get_db)) -> ChatDeleteResponse:
     return ChatDeleteResponse.model_validate(delete_chat_message(db, message_id))
 
 
-@router.post("/llm/answer", response_model=RagAnswerResponse)
+@core_router.post("/llm/answer", response_model=RagAnswerResponse)
 def llm_answer_endpoint(payload: RagAnswerRequest, db: Session = Depends(get_db)) -> RagAnswerResponse:
     result = answer_with_rag(db, settings, payload.model_dump())
     return RagAnswerResponse.model_validate(result)
 
 
-@router.get("/trash", response_model=TrashListResponse)
+@core_router.get("/trash", response_model=TrashListResponse)
 def list_trash_endpoint(db: Session = Depends(get_db)) -> TrashListResponse:
     return TrashListResponse.model_validate(list_trash_items(db, settings))
 
 
-@router.post("/trash/restore", response_model=TrashActionResponse)
+@core_router.post("/trash/restore", response_model=TrashActionResponse)
 def restore_trash_endpoint(payload: TrashActionRequest, db: Session = Depends(get_db)) -> TrashActionResponse:
     result = restore_trash_entry(db, settings, payload.model_dump())
     return TrashActionResponse.model_validate(result)
 
 
-@router.delete("/trash", response_model=TrashActionResponse)
+@core_router.delete("/trash", response_model=TrashActionResponse)
 def purge_trash_endpoint(payload: TrashActionRequest, db: Session = Depends(get_db)) -> TrashActionResponse:
     result = purge_trash_entry(db, settings, payload.model_dump())
     return TrashActionResponse.model_validate(result)

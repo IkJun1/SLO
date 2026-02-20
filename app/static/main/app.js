@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
-const API_BASE = '/api/v1';
+const API_BASE = '/api/v1/user';
 
 const state = {
     activeTab: 'markdown',
@@ -11,7 +11,6 @@ const state = {
     currentImagePath: null,
     graphInitialized: false,
     saveTimeout: null,
-    imageRenameTimeout: null,
     docs: [],
     imageFiles: [],
     folders: [],
@@ -266,17 +265,9 @@ function setupMarkdownView() {
         }
     });
 
-    const titleInput = document.getElementById('doc-title');
     const contentInput = document.getElementById('doc-content');
     const imageFileInput = document.getElementById('image-file-input');
 
-    titleInput.addEventListener('input', () => {
-        if (state.currentImagePath) {
-            scheduleImageRename();
-            return;
-        }
-        scheduleSave();
-    });
     contentInput.addEventListener('input', () => {
         scheduleSave();
         renderMarkdownPreview(contentInput.value);
@@ -344,15 +335,29 @@ function isImagePath(path) {
     );
 }
 
-function setEditorReadonlyMode(contentReadonly, titleReadonly = contentReadonly) {
-    const titleInput = document.getElementById('doc-title');
+function setEditorReadonlyMode(contentReadonly) {
     const contentInput = document.getElementById('doc-content');
-    if (!titleInput || !contentInput) {
+    if (!contentInput) {
         return;
     }
 
-    titleInput.readOnly = titleReadonly;
     contentInput.readOnly = contentReadonly;
+}
+
+function setEditorFilename(path) {
+    const filenameElement = document.getElementById('doc-filename');
+    if (!filenameElement) {
+        return;
+    }
+
+    const rawPath = String(path || '').trim();
+    filenameElement.textContent = rawPath ? baseName(rawPath) : '';
+    filenameElement.title = rawPath;
+}
+
+function refreshEditorFilename() {
+    const targetPath = state.currentDocPath || state.currentImagePath || '';
+    setEditorFilename(targetPath);
 }
 
 async function openImagePicker() {
@@ -666,6 +671,7 @@ async function submitQuickAction() {
 
             state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
             state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
+            refreshEditorFilename();
 
             if (state.selectedEntry) {
                 const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
@@ -1268,6 +1274,7 @@ async function moveEntryToPath(entry, targetPath) {
         const result = await renameDocWithPath(docId, targetPath);
         const movedPath = String(result.to_path || targetPath);
         state.currentDocPath = remapMovedPath(state.currentDocPath, entry.path, movedPath) || null;
+        refreshEditorFilename();
 
         expandAncestors(movedPath);
         await refreshFileTree();
@@ -1291,6 +1298,7 @@ async function moveEntryToPath(entry, targetPath) {
         const result = await renameImageWithPath(entry.path, targetPath);
         const movedPath = String(result.to_path || targetPath);
         state.currentImagePath = remapMovedPath(state.currentImagePath, entry.path, movedPath) || null;
+        refreshEditorFilename();
 
         expandAncestors(movedPath);
         await refreshFileTree();
@@ -1311,6 +1319,7 @@ async function moveEntryToPath(entry, targetPath) {
 
         state.currentDocPath = remapMovedPath(state.currentDocPath, fromPath, movedPath) || null;
         state.currentImagePath = remapMovedPath(state.currentImagePath, fromPath, movedPath) || null;
+        refreshEditorFilename();
 
         if (state.selectedEntry) {
             const selectedPath = remapMovedPath(state.selectedEntry.path, fromPath, movedPath);
@@ -1920,18 +1929,14 @@ async function loadDoc(path) {
         }
 
         const doc = await res.json();
-        if (state.imageRenameTimeout) {
-            clearTimeout(state.imageRenameTimeout);
-            state.imageRenameTimeout = null;
-        }
         state.currentDocPath = doc.path;
         state.currentImagePath = null;
+        setEditorFilename(doc.path);
 
         document.getElementById('empty-state').style.display = 'none';
         document.getElementById('editor-container').style.display = 'flex';
         setEditorReadonlyMode(false);
 
-        document.getElementById('doc-title').value = doc.title;
         document.getElementById('doc-content').value = doc.content;
         renderMarkdownPreview(doc.content);
 
@@ -1958,37 +1963,19 @@ function imageMarkdownForPath(path) {
     return `![${imageTitleFromPath(path)}](${imageUrl})`;
 }
 
-function imageRenamedPathFromTitle(currentPath, rawTitle) {
-    const sanitized = String(rawTitle || '').replace(/[\\/]/g, ' ').trim();
-    if (sanitized === '') {
-        return null;
-    }
-
-    const lastDot = currentPath.lastIndexOf('.');
-    const extension = lastDot >= 0 ? currentPath.slice(lastDot) : '';
-    const parent = parentPath(currentPath);
-    const filename = `${sanitized}${extension}`;
-    return parent ? `${parent}/${filename}` : filename;
-}
-
 async function loadImagePreview(path) {
     const requestedPath = String(path || '').trim();
     if (!requestedPath) {
         return;
     }
 
-    if (state.imageRenameTimeout) {
-        clearTimeout(state.imageRenameTimeout);
-        state.imageRenameTimeout = null;
-    }
-
     state.currentDocPath = null;
     state.currentImagePath = requestedPath;
+    setEditorFilename(requestedPath);
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('editor-container').style.display = 'flex';
-    setEditorReadonlyMode(true, false);
+    setEditorReadonlyMode(true);
 
-    document.getElementById('doc-title').value = imageTitleFromPath(requestedPath);
     const markdown = imageMarkdownForPath(requestedPath);
     document.getElementById('doc-content').value = markdown;
     renderMarkdownPreview(markdown);
@@ -2000,94 +1987,14 @@ async function loadImagePreview(path) {
 function clearEditor() {
     state.currentDocPath = null;
     state.currentImagePath = null;
-
-    if (state.imageRenameTimeout) {
-        clearTimeout(state.imageRenameTimeout);
-        state.imageRenameTimeout = null;
-    }
+    setEditorFilename('');
 
     setEditorReadonlyMode(false);
 
     document.getElementById('editor-container').style.display = 'none';
     document.getElementById('empty-state').style.display = 'flex';
-    document.getElementById('doc-title').value = '';
     document.getElementById('doc-content').value = '';
     renderMarkdownPreview('');
-}
-
-function scheduleImageRename() {
-    if (!state.currentImagePath) {
-        return;
-    }
-
-    const status = document.getElementById('save-status');
-    status.textContent = 'Renaming...';
-    status.style.opacity = '1';
-
-    if (state.imageRenameTimeout) {
-        clearTimeout(state.imageRenameTimeout);
-    }
-
-    state.imageRenameTimeout = setTimeout(() => {
-        void renameCurrentImageFromTitle();
-    }, 700);
-}
-
-async function renameCurrentImageFromTitle() {
-    const currentPath = state.currentImagePath;
-    if (!currentPath) {
-        return;
-    }
-
-    const titleInput = document.getElementById('doc-title');
-    const targetPath = imageRenamedPathFromTitle(currentPath, titleInput.value);
-    if (!targetPath) {
-        showSelectedStatus('Image name cannot be empty.', 'error');
-        titleInput.value = imageTitleFromPath(currentPath);
-        return;
-    }
-
-    if (targetPath === currentPath) {
-        const status = document.getElementById('save-status');
-        status.textContent = 'Saved';
-        setTimeout(() => {
-            status.style.opacity = '0';
-        }, 1200);
-        return;
-    }
-
-    try {
-        const result = await renameImageWithPath(currentPath, targetPath);
-        state.currentImagePath = result.to_path;
-
-        if (state.selectedEntry && state.selectedEntry.type === 'image') {
-            state.selectedEntry = {
-                ...state.selectedEntry,
-                path: result.to_path,
-                name: baseName(result.to_path)
-            };
-        }
-
-        titleInput.value = imageTitleFromPath(result.to_path);
-        const markdown = imageMarkdownForPath(result.to_path);
-        document.getElementById('doc-content').value = markdown;
-        renderMarkdownPreview(markdown);
-
-        expandAncestors(result.to_path);
-        await refreshFileTree();
-        setSelectedEntry({ type: 'image', path: result.to_path, name: baseName(result.to_path) });
-
-        const status = document.getElementById('save-status');
-        status.textContent = 'Saved';
-        setTimeout(() => {
-            status.style.opacity = '0';
-        }, 1200);
-    } catch (err) {
-        console.error(err);
-        document.getElementById('save-status').textContent = 'Error saving';
-        showSelectedStatus((err && err.message) || 'Failed to rename image.', 'error');
-        titleInput.value = imageTitleFromPath(state.currentImagePath || currentPath);
-    }
 }
 
 function scheduleSave() {
@@ -2111,7 +2018,6 @@ async function saveCurrentDoc() {
         return;
     }
 
-    const title = document.getElementById('doc-title').value;
     const content = document.getElementById('doc-content').value;
 
     try {
@@ -2119,7 +2025,7 @@ async function saveCurrentDoc() {
         const res = await fetch(apiPath(`/docs/by-path?path=${encodedPath}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, content })
+            body: JSON.stringify({ content })
         });
 
         if (!res.ok) {

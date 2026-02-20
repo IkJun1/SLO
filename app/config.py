@@ -11,6 +11,8 @@ class Settings:
     vault_root: Path
     db_path: Path
     faiss_index_path: Path
+    is_http: bool
+    mcp_api_key: str
     embedding_provider: str
     embedding_api_base: str
     embedding_model: str
@@ -71,11 +73,27 @@ def _path_from_env(name: str, default: Path) -> Path:
     return default.expanduser().resolve()
 
 
+def _bool_from_env(name: str, default: bool) -> bool:
+    raw = _raw_setting(name)
+    if raw is None or raw == "":
+        return default
+
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+
+    raise ValueError(f"invalid boolean value for {name}: {raw}")
+
+
 def get_settings() -> Settings:
     global _settings_cache
     if _settings_cache is None:
         project_root = Path(__file__).resolve().parent.parent
         provider = "ollama"
+        is_http = _bool_from_env("IS_HTTP", True)
+        mcp_api_key = _raw_setting("MCP_API_KEY") or ""
 
         embedding_api_base = _raw_setting("SLO_EMBEDDING_API_BASE") or "http://localhost:11434"
         embedding_model = _raw_setting("SLO_EMBEDDING_MODEL") or "bge-m3:567m"
@@ -91,6 +109,8 @@ def get_settings() -> Settings:
             vault_root=(project_root / "vault").resolve(),
             db_path=Path("./data/slo.db").expanduser().resolve(),
             faiss_index_path=Path("./data/slo.faiss").expanduser().resolve(),
+            is_http=is_http,
+            mcp_api_key=mcp_api_key,
             embedding_provider=provider,
             embedding_api_base=embedding_api_base,
             embedding_model=embedding_model,

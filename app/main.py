@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -11,7 +11,8 @@ from app.config import ensure_runtime_paths, get_settings
 from app.db import SessionLocal, init_db
 from app.errors import register_exception_handlers
 from app.models import UserAccount
-from app.routes import router
+from app.routes import core_router, public_router
+from app.security import require_mcp_api_key, require_user_auth
 from app.services import AUTH_COOKIE_NAME, bootstrap_documents_from_vault, has_registered_user, read_username_from_token
 
 
@@ -62,7 +63,21 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="SLO API", version="0.1.0", lifespan=lifespan)
     register_exception_handlers(app)
-    app.include_router(router, prefix=settings.api_prefix)
+
+    user_router = APIRouter(prefix="/user", dependencies=[Depends(require_user_auth)])
+    user_router.include_router(core_router)
+
+    legacy_user_router = APIRouter(dependencies=[Depends(require_user_auth)])
+    legacy_user_router.include_router(core_router)
+
+    mcp_router = APIRouter(prefix="/mcp", dependencies=[Depends(require_mcp_api_key)])
+    mcp_router.include_router(core_router)
+
+    app.include_router(public_router, prefix=settings.api_prefix)
+    app.include_router(user_router, prefix=settings.api_prefix)
+    app.include_router(legacy_user_router, prefix=settings.api_prefix)
+    app.include_router(mcp_router, prefix=settings.api_prefix)
+
     app.mount("/static/login", StaticFiles(directory=STATIC_DIR / "login"), name="static_login")
     app.mount("/static/signup", StaticFiles(directory=STATIC_DIR / "signup"), name="static_signup")
     app.mount("/static", StaticFiles(directory=STATIC_DIR / "main"), name="static")

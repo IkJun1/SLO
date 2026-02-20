@@ -508,14 +508,14 @@ body.resizing-panels {
     border-bottom: 1px solid var(--border-color);
 }
 
-#doc-title {
-    background: transparent;
-    border: none;
+#doc-filename {
     color: var(--text-primary);
     font-size: 18px;
     font-weight: 600;
-    width: 60%;
-    outline: none;
+    max-width: calc(100% - 180px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .editor-actions {
@@ -574,7 +574,6 @@ body.resizing-panels {
     background-color: rgba(124, 77, 255, 0.1);
 }
 
-#doc-title[readonly],
 #doc-content[readonly] {
     color: var(--text-secondary);
 }

@@ -2208,7 +2208,7 @@ def upload_image_to_vault(
     atomic_write_bytes(image_abs, data)
 
     encoded = quote(rel_path, safe="")
-    url = f"{settings.api_prefix}/images/by-path?path={encoded}"
+    url = f"{settings.api_prefix}/user/images/by-path?path={encoded}"
     markdown = f"![{Path(safe_filename).stem}]({url})"
 
     return {

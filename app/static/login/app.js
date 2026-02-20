@@ -1,4 +1,4 @@
-const API_PREFIX = '/api/v1';
+const API_PREFIX = '/api/v1/public';
 
 function setMessage(text, tone = '') {
     const target = document.getElementById('login-message');
