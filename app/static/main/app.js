@@ -1618,7 +1618,9 @@ function renderFileTree() {
         } else {
             icon.dataset.lucide = 'file-text';
         }
-        icon.style.width = '14px';
+        const iconSizePx = entry.type === 'image' ? 28 : 14;
+        icon.style.width = `${iconSizePx}px`;
+        icon.style.height = `${iconSizePx}px`;
         item.appendChild(icon);
 
         const nameWrap = document.createElement('div');
