@@ -66,7 +66,10 @@ def _request(
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     url = _build_url(path, params)
-    headers = {"Authorization": f"Bearer {_get_mcp_api_key()}"}
+    headers = {
+        "Authorization": f"Bearer {_get_mcp_api_key()}",
+        "User-Agent": "SLO-MCP-Server/1.0",
+    }
     data: bytes | None = None
 
     if payload is not None:
