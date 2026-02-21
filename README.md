@@ -3,7 +3,8 @@
 > Manage your documents anywhere, from any environment.
 
 SLO is a **personal knowledge management tool** built for people who work across multiple environments — servers, local machines, and beyond.  
-Through MCP (Model Context Protocol), you can create and edit documents from anywhere. SLO also supports markdown-based editing, a graph view, and a **RAG chatbot** powered by your own documents.
+Through MCP (Model Context Protocol), you can create and edit documents from anywhere. SLO also supports markdown-based editing, a graph view, and a **RAG chatbot** powered by your own documents.  
+All documents and files are stored in the `vault/` folder within the project directory.
 
 ---
 
