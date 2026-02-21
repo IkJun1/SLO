@@ -95,13 +95,13 @@ def get_settings() -> Settings:
         is_http = _bool_from_env("IS_HTTP", True)
         mcp_api_key = _raw_setting("MCP_API_KEY") or ""
 
-        embedding_api_base = _raw_setting("SLO_EMBEDDING_API_BASE") or "http://localhost:11434"
-        embedding_model = _raw_setting("SLO_EMBEDDING_MODEL") or "bge-m3:567m"
+        embedding_api_base = _raw_setting("EMBEDDING_API_BASE") or "http://localhost:11434"
+        embedding_model = _raw_setting("EMBEDDING_MODEL") or "bge-m3:567m"
         embedding_batch_size = 16
-        llm_api_base = _raw_setting("SLO_LLM_API_BASE") or "http://localhost:11434"
-        llm_model = _raw_setting("SLO_LLM_MODEL") or "gemma3:270m"
+        llm_api_base = _raw_setting("LLM_API_BASE") or "http://localhost:11434"
+        llm_model = _raw_setting("LLM_MODEL") or "gemma3:270m"
 
-        if (_raw_setting("SLO_EMBEDDING_API_BASE") or "") == "":
+        if (_raw_setting("EMBEDDING_API_BASE") or "") == "":
             embedding_api_base = llm_api_base
 
         _settings_cache = Settings(
