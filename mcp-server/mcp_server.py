@@ -10,9 +10,9 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 
-API_BASE = os.getenv("SLO_API_BASE", "http://127.0.0.1:8000").rstrip("/")
-API_PREFIX = os.getenv("SLO_MCP_API_PREFIX", "/api/v1/mcp").strip()
-REQUEST_TIMEOUT_SECONDS = float(os.getenv("SLO_MCP_TIMEOUT_SECONDS", "30"))
+API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000").rstrip("/")
+API_PREFIX = os.getenv("MCP_API_PREFIX", "/api/v1/mcp").strip()
+REQUEST_TIMEOUT_SECONDS = float(os.getenv("MCP_TIMEOUT_SECONDS", "30"))
 MCP_INSTRUCTIONS = """
 SLO MCP Tool Usage Policy
 1. Documents must always be created with .md extension.
