@@ -80,6 +80,9 @@ IS_HTTP=              # Set to true for HTTP, false for HTTPS
 python main.py
 ```
 
+> **💡 Note**  
+> By default, the server runs on `127.0.0.1:8000`. To change the host or port, edit `main.py`.
+
 ---
 
 ## 🧠 Embedding & RAG Chatbot
