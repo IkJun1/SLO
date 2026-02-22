@@ -67,15 +67,11 @@ def create_app() -> FastAPI:
     user_router = APIRouter(prefix="/user", dependencies=[Depends(require_user_auth)])
     user_router.include_router(core_router)
 
-    legacy_user_router = APIRouter(dependencies=[Depends(require_user_auth)])
-    legacy_user_router.include_router(core_router)
-
     mcp_router = APIRouter(prefix="/mcp", dependencies=[Depends(require_mcp_api_key)])
     mcp_router.include_router(core_router)
 
     app.include_router(public_router, prefix=settings.api_prefix)
     app.include_router(user_router, prefix=settings.api_prefix)
-    app.include_router(legacy_user_router, prefix=settings.api_prefix)
     app.include_router(mcp_router, prefix=settings.api_prefix)
 
     app.mount("/static/login", StaticFiles(directory=STATIC_DIR / "login"), name="static_login")
