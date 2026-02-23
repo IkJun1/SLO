@@ -152,12 +152,6 @@ body {
     height: 15px;
 }
 
-.explorer-action-btn.danger:hover {
-    color: #ff7a7a;
-    border-color: rgba(255, 82, 82, 0.4);
-    background-color: rgba(255, 82, 82, 0.08);
-}
-
 .quick-action-panel,
 .confirm-panel {
     margin: 10px 10px 0;

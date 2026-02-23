@@ -218,16 +218,6 @@ function setupMarkdownView() {
         createFolderBtn.addEventListener('click', () => openQuickAction('create-folder'));
     }
 
-    const renameEntryBtn = document.getElementById('rename-entry-btn');
-    if (renameEntryBtn) {
-        renameEntryBtn.addEventListener('click', () => openRenameAction());
-    }
-
-    const deleteEntryBtn = document.getElementById('delete-entry-btn');
-    if (deleteEntryBtn) {
-        deleteEntryBtn.addEventListener('click', () => openDeleteConfirm('selected'));
-    }
-
     const deleteDocBtn = document.getElementById('delete-doc-btn');
     if (deleteDocBtn) {
         deleteDocBtn.addEventListener('click', () => openDeleteConfirm('current-doc'));
@@ -371,26 +361,6 @@ async function openImagePicker() {
         return;
     }
     input.click();
-}
-
-function openRenameAction() {
-    const selected = state.selectedEntry;
-    if (!selected || (selected.type !== 'image' && selected.type !== 'doc' && selected.type !== 'folder')) {
-        showSelectedStatus('Select a document, image, or folder to rename.', 'error');
-        return;
-    }
-
-    if (selected.type === 'doc') {
-        openQuickAction('rename-doc');
-        return;
-    }
-
-    if (selected.type === 'image') {
-        openQuickAction('rename-image');
-        return;
-    }
-
-    openQuickAction('rename-folder');
 }
 
 function hasImageFile(dataTransfer) {

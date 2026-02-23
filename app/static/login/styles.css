@@ -133,12 +133,3 @@ body {
     font-size: 13px;
     color: var(--text-secondary);
 }
-
-.login-link {
-    color: var(--accent-color);
-    text-decoration: none;
-}
-
-.login-link:hover {
-    text-decoration: underline;
-}
