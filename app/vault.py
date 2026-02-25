@@ -104,7 +104,7 @@ def render_tree(base_path: Path, depth: int | None = None) -> str:
     file_count = 0
 
     def list_entries(current: Path) -> list[Path]:
-        entries = [entry for entry in current.iterdir() if entry.name != ".trash"]
+        entries = [entry for entry in current.iterdir() if entry.name not in {".trash", ".git"}]
         for entry in entries:
             if entry.is_symlink():
                 raise APIError("SYMLINK_BLOCKED", 400, "symlink path is blocked", {"path": str(entry)})

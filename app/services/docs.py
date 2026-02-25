@@ -56,7 +56,12 @@ def get_doc(db: Session, settings: Settings, path: str) -> dict[str, Any]:
 
 
 def list_docs(db: Session, path_prefix: str | None) -> dict[str, Any]:
-    stmt = select(Document).where(Document.deleted_at.is_(None))
+    stmt = select(Document).where(
+        Document.deleted_at.is_(None),
+        Document.path != ".git",
+        ~Document.path.like(".git/%"),
+        ~Document.path.like("%/.git/%"),
+    )
 
     if path_prefix not in (None, ""):
         normalized_prefix = normalize_rel_path(path_prefix)

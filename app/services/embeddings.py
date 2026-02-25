@@ -197,6 +197,8 @@ def bootstrap_documents_from_vault(db: Session, settings: Settings) -> dict[str,
         rel_path = file_path.relative_to(settings.vault_root).as_posix()
         if rel_path.startswith(".trash/"):
             continue
+        if rel_path.startswith(".git/") or "/.git/" in rel_path:
+            continue
 
         content = file_path.read_text(encoding="utf-8")
         content_hash = hash_text(content)
