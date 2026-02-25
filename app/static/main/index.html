@@ -15,6 +15,40 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+    <header id="desktop-topbar" class="desktop-topbar hidden">
+        <div class="desktop-topbar-left">
+            <span class="desktop-app-name">SLO Desktop</span>
+            <span id="desktop-tab-label" class="desktop-tab-pill">Markdown</span>
+            <span id="desktop-context-label" class="desktop-context-label">No selection</span>
+        </div>
+        <div class="desktop-topbar-right">
+            <span id="desktop-active-url" class="desktop-active-url">Not connected</span>
+            <div class="desktop-topbar-actions">
+                <div class="desktop-action-group global">
+                    <button id="desktop-open-settings-btn" class="desktop-topbar-btn" type="button">Connection</button>
+                    <button id="desktop-reload-btn" class="desktop-topbar-btn" type="button">Reload</button>
+                </div>
+                <div id="desktop-actions-markdown" class="desktop-action-group">
+                    <button id="desktop-md-new-doc-btn" class="desktop-topbar-btn" type="button">New Doc</button>
+                    <button id="desktop-md-new-folder-btn" class="desktop-topbar-btn" type="button">New Folder</button>
+                    <button id="desktop-md-insert-image-btn" class="desktop-topbar-btn" type="button">Insert Image</button>
+                    <button id="desktop-md-delete-btn" class="desktop-topbar-btn danger" type="button">Delete</button>
+                </div>
+                <div id="desktop-actions-graph" class="desktop-action-group">
+                    <button id="desktop-graph-refresh-btn" class="desktop-topbar-btn" type="button">Refresh</button>
+                    <button id="desktop-graph-sync-btn" class="desktop-topbar-btn accent" type="button">Sync</button>
+                </div>
+                <div id="desktop-actions-trash" class="desktop-action-group">
+                    <button id="desktop-trash-refresh-btn" class="desktop-topbar-btn" type="button">Refresh</button>
+                    <button id="desktop-trash-restore-btn" class="desktop-topbar-btn accent" type="button">Restore</button>
+                    <button id="desktop-trash-purge-btn" class="desktop-topbar-btn danger" type="button">Delete Permanently</button>
+                </div>
+                <div id="desktop-actions-llm" class="desktop-action-group">
+                    <button id="desktop-chat-new-btn" class="desktop-topbar-btn accent" type="button">New Chat</button>
+                </div>
+            </div>
+        </div>
+    </header>
     <div id="app">
         <nav id="sidebar">
             <div class="nav-item active" data-tab="markdown" title="Markdown">
@@ -66,14 +100,6 @@
                 <div class="editor-pane">
                     <div id="empty-state">Select a file to edit</div>
                     <div id="editor-container" style="display: none;">
-                        <header class="editor-header">
-                            <span id="doc-filename"></span>
-                            <div class="editor-actions">
-                                <span id="save-status">Saved</span>
-                                <button id="insert-image-btn" title="Insert image"><i data-lucide="image-plus"></i></button>
-                                <button id="delete-doc-btn" title="Delete"><i data-lucide="trash-2"></i></button>
-                            </div>
-                        </header>
                         <div class="editor-body">
                             <section class="editor-column">
                                 <div class="pane-header">Editor</div>

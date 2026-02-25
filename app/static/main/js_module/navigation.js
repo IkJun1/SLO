@@ -38,4 +38,8 @@ export function switchTab(tabId) {
     if (tabId === 'trash') {
         void moduleDeps.loadTrashItems();
     }
+
+    window.dispatchEvent(new CustomEvent('slo:tab-changed', {
+        detail: { tabId }
+    }));
 }

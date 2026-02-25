@@ -1,8 +1,8 @@
 import { remapMovedPath, renameDocWithPath, renameFolderWithPath, renameImageWithPath } from './markdown_actions.js';
-import { clearEditor, configureMarkdownEditorModule, estimateDropIndexFromPointer, hasImageFile, insertUploadedImages, loadDoc, loadImagePreview, openImagePicker, refreshEditorFilename, renderMarkdownPreview, scheduleSave } from './markdown_editor.js';
+import { clearEditor, configureMarkdownEditorModule, estimateDropIndexFromPointer, hasImageFile, insertUploadedImages, loadDoc, loadImagePreview, refreshEditorFilename, renderMarkdownPreview, scheduleSave } from './markdown_editor.js';
 import { configureMarkdownTreeModule, expandAncestors, renderFileTree } from './markdown_tree.js';
 import { baseName } from './utils.js';
-import { confirmDeleteSelection, hideConfirmPanel, hideQuickAction, openDeleteConfirm, openQuickAction, submitQuickAction } from './markdown/quick_actions.js';
+import { confirmDeleteSelection, hideConfirmPanel, hideQuickAction, openQuickAction, submitQuickAction } from './markdown/quick_actions.js';
 import { configureMarkdownSelectionStatusModule, setSelectedEntry, showSelectedStatus, updateSelectedLabel } from './markdown/selection_status.js';
 import { configureMarkdownTreeRefreshModule, refreshFileTree } from './markdown/tree_refresh.js';
 
@@ -47,18 +47,6 @@ export function setupMarkdownView() {
     const createFolderBtn = document.getElementById('create-folder-btn');
     if (createFolderBtn) {
         createFolderBtn.addEventListener('click', () => openQuickAction('create-folder'));
-    }
-
-    const deleteDocBtn = document.getElementById('delete-doc-btn');
-    if (deleteDocBtn) {
-        deleteDocBtn.addEventListener('click', () => openDeleteConfirm('current-doc'));
-    }
-
-    const insertImageBtn = document.getElementById('insert-image-btn');
-    if (insertImageBtn) {
-        insertImageBtn.addEventListener('click', () => {
-            void openImagePicker();
-        });
     }
 
     document.getElementById('quick-submit-btn').addEventListener('click', submitQuickAction);

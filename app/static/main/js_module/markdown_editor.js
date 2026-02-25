@@ -232,6 +232,19 @@ export function clearEditor() {
     document.getElementById('empty-state').style.display = 'flex';
     document.getElementById('doc-content').value = '';
     renderMarkdownPreview('');
+    window.dispatchEvent(new Event('slo:selection-changed'));
+}
+
+function setSaveStatus(text, opacity = null) {
+    const status = document.getElementById('save-status');
+    if (!status) {
+        return;
+    }
+
+    status.textContent = text;
+    if (opacity !== null) {
+        status.style.opacity = opacity;
+    }
 }
 
 export function scheduleSave() {
@@ -239,9 +252,7 @@ export function scheduleSave() {
         return;
     }
 
-    const status = document.getElementById('save-status');
-    status.textContent = 'Unsaved...';
-    status.style.opacity = '1';
+    setSaveStatus('Unsaved...', '1');
 
     if (state.saveTimeout) {
         clearTimeout(state.saveTimeout);
@@ -269,16 +280,16 @@ async function saveCurrentDoc() {
             throw new Error('Save failed');
         }
 
-        const status = document.getElementById('save-status');
-        status.textContent = 'Saved';
+        setSaveStatus('Saved');
         setTimeout(() => {
-            status.style.opacity = '0';
+            setSaveStatus('Saved', '0');
         }, 2000);
 
         await moduleDeps.refreshFileTree();
     } catch (err) {
         console.error('Save failed', err);
-        document.getElementById('save-status').textContent = 'Error saving';
+        setSaveStatus('Error saving', '1');
+        moduleDeps.showSelectedStatus('Error saving', 'error');
     }
 }
 
@@ -303,4 +314,3 @@ export function renderMarkdownPreview(markdownText) {
         preview.innerHTML = `<pre>${escapeHtml(markdownText)}</pre>`;
     }
 }
-

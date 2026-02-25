@@ -15,6 +15,7 @@ export function setSelectedEntry(entry) {
     state.selectedEntry = entry;
     moduleDeps.renderFileTree();
     updateSelectedLabel();
+    window.dispatchEvent(new Event('slo:selection-changed'));
 }
 
 export function updateSelectedLabel() {
