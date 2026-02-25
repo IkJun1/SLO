@@ -6,6 +6,7 @@ import {
     setupChatSourceGlobalActions,
     sourcePathsFromHits
 } from './chat_sources.js';
+import { renderMathIfAvailable } from './math_renderer.js';
 import {
     configureChatSessionsModule,
     createNewChatSession,
@@ -139,6 +140,10 @@ async function handleChat(query) {
         const sourcesHtml = buildSourceBadgesHtmlFromPaths(sourcePaths);
 
         sysMsg.innerHTML = `<div class="message-content">${html}${sourcesHtml}</div>`;
+        const content = sysMsg.querySelector('.message-content');
+        if (content) {
+            renderMathIfAvailable(content);
+        }
         await loadChatSessions(state.activeChatSessionId);
         if (state.activeChatSessionId) {
             await loadChatSessionMessages(state.activeChatSessionId);

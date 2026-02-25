@@ -1,4 +1,5 @@
 import { apiPath } from './api.js';
+import { renderMathIfAvailable } from './math_renderer.js';
 import { state } from './state.js';
 import { baseName, escapeHtml } from './utils.js';
 
@@ -71,6 +72,7 @@ export async function loadChatSourcePreview(path) {
         }
         if (preview) {
             preview.innerHTML = html;
+            renderMathIfAvailable(preview);
         }
         if (gotoBtn) {
             gotoBtn.disabled = false;

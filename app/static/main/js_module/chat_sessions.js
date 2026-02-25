@@ -5,6 +5,7 @@ import {
     extractDocPathsFromText,
     normalizeSourcePathList
 } from './chat_sources.js';
+import { renderMathIfAvailable } from './math_renderer.js';
 import { state } from './state.js';
 import { escapeHtml } from './utils.js';
 
@@ -337,6 +338,7 @@ function appendChatMessage(historyEl, message) {
         const fallbackPaths = sourcePaths.length > 0 ? sourcePaths : extractDocPathsFromText(message.content || '');
         const sourcesHtml = buildSourceBadgesHtmlFromPaths(fallbackPaths);
         content.innerHTML = `${html}${sourcesHtml}`;
+        renderMathIfAvailable(content);
         wrapper.appendChild(content);
         historyEl.appendChild(wrapper);
         return;

@@ -1,4 +1,5 @@
 import { apiPath, safeJson } from './api.js';
+import { renderMathIfAvailable } from './math_renderer.js';
 import { state } from './state.js';
 import { baseName, escapeHtml } from './utils.js';
 
@@ -310,6 +311,7 @@ export function renderMarkdownPreview(markdownText) {
             rendered = window.DOMPurify.sanitize(rendered);
         }
         preview.innerHTML = rendered;
+        renderMathIfAvailable(preview);
     } catch (_err) {
         preview.innerHTML = `<pre>${escapeHtml(markdownText)}</pre>`;
     }
