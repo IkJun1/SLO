@@ -17,6 +17,7 @@ from app.services import AUTH_COOKIE_NAME, bootstrap_documents_from_vault, has_r
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 
 
 def _has_registered_users() -> bool:
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.mount("/static/login", StaticFiles(directory=STATIC_DIR / "login"), name="static_login")
     app.mount("/static/signup", StaticFiles(directory=STATIC_DIR / "signup"), name="static_signup")
     app.mount("/static", StaticFiles(directory=STATIC_DIR / "main"), name="static")
+    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
     @app.get("/", include_in_schema=False)
     def serve_frontend(request: Request) -> RedirectResponse:
