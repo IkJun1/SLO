@@ -81,6 +81,10 @@ function renderTrashList() {
         const key = trashItemKey(trashItem);
         const li = document.createElement('li');
         li.className = 'trash-item';
+        li.dataset.trashKey = key;
+        li.dataset.entryType = String(trashItem.entry_type || '');
+        li.dataset.docId = String(trashItem.doc_id || '');
+        li.dataset.trashPath = String(trashItem.trash_path || '');
         if (state.selectedTrashKey === key) {
             li.classList.add('active');
         }

@@ -95,6 +95,11 @@ export function renderFileTree() {
 
         const item = document.createElement('div');
         item.className = `tree-item ${entry.type}`;
+        item.dataset.entryType = entry.type;
+        item.dataset.entryPath = entry.path;
+        if (entry.id) {
+            item.dataset.entryId = String(entry.id);
+        }
         const key = treeEntryKey(entry);
         const renameState = state.treeInlineRename;
         const isInlineRename = Boolean(renameState && renameState.key === key);

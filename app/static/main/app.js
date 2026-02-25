@@ -1,4 +1,5 @@
 import { configureChatModule, setupLLMView } from './js_module/chat.js';
+import { setupDesktopContextMenu } from './js_module/desktop_context_menu.js';
 import { setupDesktopShell } from './js_module/desktop_shell.js';
 import { configureGraphModule, initGraph, setupGraphView } from './js_module/graph.js';
 import { setupPanelSplitters } from './js_module/layout.js';
@@ -46,6 +47,7 @@ function initApp() {
     setupLLMView();
     setupPanelSplitters();
     void setupDesktopShell();
+    setupDesktopContextMenu();
 
     refreshFileTree();
 }

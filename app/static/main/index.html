@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +8,16 @@
     <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
     <script src="//unpkg.com/3d-force-graph"></script>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
+
 <body>
     <header id="desktop-topbar" class="desktop-topbar hidden">
         <div class="desktop-topbar-left">
@@ -25,26 +29,42 @@
             <span id="desktop-active-url" class="desktop-active-url">Not connected</span>
             <div class="desktop-topbar-actions">
                 <div class="desktop-action-group global">
-                    <button id="desktop-open-settings-btn" class="desktop-topbar-btn" type="button">Connection</button>
-                    <button id="desktop-reload-btn" class="desktop-topbar-btn" type="button">Reload</button>
+                    <button id="desktop-open-settings-btn" class="desktop-topbar-btn" type="button"
+                        title="Connection Settings"><i data-lucide="settings"></i></button>
+                    <button id="desktop-reload-btn" class="desktop-topbar-btn" type="button" title="Reload App"><i
+                            data-lucide="rotate-cw"></i></button>
                 </div>
                 <div id="desktop-actions-markdown" class="desktop-action-group">
-                    <button id="desktop-md-new-doc-btn" class="desktop-topbar-btn" type="button">New Doc</button>
-                    <button id="desktop-md-new-folder-btn" class="desktop-topbar-btn" type="button">New Folder</button>
-                    <button id="desktop-md-insert-image-btn" class="desktop-topbar-btn" type="button">Insert Image</button>
-                    <button id="desktop-md-delete-btn" class="desktop-topbar-btn danger" type="button">Delete</button>
+                    <div class="desktop-divider"></div>
+                    <button id="desktop-md-new-doc-btn" class="desktop-topbar-btn" type="button" title="New Document"><i
+                            data-lucide="file-plus-2"></i></button>
+                    <button id="desktop-md-new-folder-btn" class="desktop-topbar-btn" type="button"
+                        title="New Folder"><i data-lucide="folder-plus"></i></button>
+                    <button id="desktop-md-insert-image-btn" class="desktop-topbar-btn" type="button"
+                        title="Insert Image"><i data-lucide="image-plus"></i></button>
+                    <button id="desktop-md-delete-btn" class="desktop-topbar-btn danger" type="button" title="Delete"><i
+                            data-lucide="trash-2"></i></button>
                 </div>
                 <div id="desktop-actions-graph" class="desktop-action-group">
-                    <button id="desktop-graph-refresh-btn" class="desktop-topbar-btn" type="button">Refresh</button>
-                    <button id="desktop-graph-sync-btn" class="desktop-topbar-btn accent" type="button">Sync</button>
+                    <div class="desktop-divider"></div>
+                    <button id="desktop-graph-refresh-btn" class="desktop-topbar-btn" type="button"
+                        title="Refresh Graph"><i data-lucide="refresh-cw"></i></button>
+                    <button id="desktop-graph-sync-btn" class="desktop-topbar-btn accent" type="button"
+                        title="Sync Embeddings"><i data-lucide="cpu"></i></button>
                 </div>
                 <div id="desktop-actions-trash" class="desktop-action-group">
-                    <button id="desktop-trash-refresh-btn" class="desktop-topbar-btn" type="button">Refresh</button>
-                    <button id="desktop-trash-restore-btn" class="desktop-topbar-btn accent" type="button">Restore</button>
-                    <button id="desktop-trash-purge-btn" class="desktop-topbar-btn danger" type="button">Delete Permanently</button>
+                    <div class="desktop-divider"></div>
+                    <button id="desktop-trash-refresh-btn" class="desktop-topbar-btn" type="button"
+                        title="Refresh Trash"><i data-lucide="refresh-cw"></i></button>
+                    <button id="desktop-trash-restore-btn" class="desktop-topbar-btn accent" type="button"
+                        title="Restore Item"><i data-lucide="archive-restore"></i></button>
+                    <button id="desktop-trash-purge-btn" class="desktop-topbar-btn danger" type="button"
+                        title="Delete Permanently"><i data-lucide="trash-2"></i></button>
                 </div>
                 <div id="desktop-actions-llm" class="desktop-action-group">
-                    <button id="desktop-chat-new-btn" class="desktop-topbar-btn accent" type="button">New Chat</button>
+                    <div class="desktop-divider"></div>
+                    <button id="desktop-chat-new-btn" class="desktop-topbar-btn accent" type="button"
+                        title="New Chat"><i data-lucide="message-square-plus"></i></button>
                 </div>
             </div>
         </div>
@@ -90,7 +110,8 @@
                     <div id="confirm-panel" class="confirm-panel hidden">
                         <p id="confirm-message" class="confirm-message"></p>
                         <div class="quick-action-buttons">
-                            <button id="confirm-delete-btn" class="quick-action-btn danger" type="button">Delete</button>
+                            <button id="confirm-delete-btn" class="quick-action-btn danger"
+                                type="button">Delete</button>
                             <button id="confirm-cancel-btn" class="quick-action-btn" type="button">Cancel</button>
                         </div>
                     </div>
@@ -106,7 +127,8 @@
                                 <textarea id="doc-content" placeholder="Start writing..."></textarea>
                                 <input id="image-file-input" type="file" accept="image/*" multiple hidden>
                             </section>
-                            <div id="editor-splitter" class="panel-splitter" role="separator" aria-orientation="vertical" aria-label="Resize editor and preview panels"></div>
+                            <div id="editor-splitter" class="panel-splitter" role="separator"
+                                aria-orientation="vertical" aria-label="Resize editor and preview panels"></div>
                             <section class="preview-column">
                                 <div class="pane-header">Preview</div>
                                 <article id="doc-preview" class="markdown-preview"></article>
@@ -120,7 +142,8 @@
                 <div id="graph-container"></div>
                 <div class="graph-controls">
                     <div class="graph-actions">
-                        <button id="refresh-graph" class="graph-action-btn"><i data-lucide="refresh-cw"></i> Refresh</button>
+                        <button id="refresh-graph" class="graph-action-btn"><i data-lucide="refresh-cw"></i>
+                            Refresh</button>
                         <button id="run-embedding-sync" class="graph-action-btn"><i data-lucide="cpu"></i> Sync</button>
                     </div>
                     <div class="control-group">
@@ -159,8 +182,10 @@
                                 <p><strong>Trash Path:</strong> <span id="trash-detail-path"></span></p>
                                 <p><strong>Deleted At:</strong> <span id="trash-detail-time"></span></p>
                                 <div class="trash-actions">
-                                    <button id="trash-restore-btn" class="trash-btn primary" type="button">Restore</button>
-                                    <button id="trash-purge-btn" class="trash-btn danger" type="button">Delete Permanently</button>
+                                    <button id="trash-restore-btn" class="trash-btn primary"
+                                        type="button">Restore</button>
+                                    <button id="trash-purge-btn" class="trash-btn danger" type="button">Delete
+                                        Permanently</button>
                                 </div>
                             </div>
                         </section>
@@ -183,7 +208,8 @@
                     <div class="chat-container">
                         <div id="chat-history">
                             <div class="message system">
-                                <div class="message-content">Hello. I am your knowledge assistant. Ask me anything about your vault.</div>
+                                <div class="message-content">Hello. I am your knowledge assistant. Ask me anything about
+                                    your vault.</div>
                             </div>
                         </div>
                         <div class="chat-input-area">
@@ -191,7 +217,8 @@
                             <button id="send-chat-btn"><i data-lucide="send"></i></button>
                         </div>
                     </div>
-                    <div id="chat-source-splitter" class="panel-splitter" role="separator" aria-orientation="vertical" aria-label="Resize chat and source preview panels"></div>
+                    <div id="chat-source-splitter" class="panel-splitter" role="separator" aria-orientation="vertical"
+                        aria-label="Resize chat and source preview panels"></div>
                     <aside class="chat-source-panel">
                         <header class="chat-source-header">
                             <span id="chat-source-path" class="chat-source-path">No source selected</span>
@@ -210,4 +237,5 @@
     </div>
     <script type="module" src="/static/app.js"></script>
 </body>
+
 </html>
