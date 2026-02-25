@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <rect width="512" height="512" rx="100" fill="#F3E8FF" />
+
+    <!-- 연결선 -->
+    <g stroke="#7C3AED" stroke-width="24" stroke-linecap="round">
+        <line x1="140" y1="120" x2="372" y2="110" />
+        <line x1="140" y1="120" x2="120" y2="300" />
+        <line x1="372" y1="110" x2="400" y2="290" />
+        <line x1="120" y1="300" x2="260" y2="380" />
+        <line x1="400" y1="290" x2="260" y2="380" />
+        <line x1="140" y1="120" x2="400" y2="290" />
+        <line x1="372" y1="110" x2="120" y2="300" />
+    </g>
+
+    <!-- 노드 -->
+    <g fill="#A78BFA" stroke="#6D28D9" stroke-width="16">
+        <circle cx="140" cy="120" r="40" />
+        <circle cx="372" cy="110" r="40" />
+        <circle cx="120" cy="300" r="40" />
+        <circle cx="400" cy="290" r="40" />
+        <circle cx="260" cy="380" r="40" />
+    </g>
+</svg>
