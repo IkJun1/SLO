@@ -22,6 +22,7 @@ SLO MCP Tool Usage Policy
 5. Do not modify paths outside the user-requested scope.
 6. After any document read, update, delete, move, or create operation, explicitly report the exact path used.
 7. Run delete_doc or move_doc with overwrite=true only when user intent is explicit.
+8. For LaTeX math, use $...$ or $$...$$.
 """.strip()
 
 if not API_PREFIX.startswith("/"):
