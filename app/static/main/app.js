@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
     if (window.marked && typeof marked.setOptions === 'function') {
-        marked.setOptions({ gfm: true, breaks: true });
+        marked.setOptions({ gfm: true, breaks: false });
     }
 
     configureNavigationModule({
