@@ -306,7 +306,7 @@ export function renderMarkdownPreview(markdownText) {
     }
 
     try {
-        let rendered = marked.parse(markdownText);
+        let rendered = renderMarkdownWithSourceAnchors(markdownText);
         if (window.DOMPurify) {
             rendered = window.DOMPurify.sanitize(rendered);
         }
@@ -315,4 +315,93 @@ export function renderMarkdownPreview(markdownText) {
     } catch (_err) {
         preview.innerHTML = `<pre>${escapeHtml(markdownText)}</pre>`;
     }
+}
+
+function renderMarkdownWithSourceAnchors(markdownText) {
+    const markedRef = window.marked;
+    if (
+        !markedRef
+        || typeof markedRef.lexer !== 'function'
+        || typeof markedRef.parser !== 'function'
+        || typeof markedRef.parse !== 'function'
+    ) {
+        return `<pre>${escapeHtml(markdownText)}</pre>`;
+    }
+
+    const tokens = markedRef.lexer(markdownText);
+    let offset = 0;
+    const chunks = [];
+
+    tokens.forEach((token) => {
+        const raw = typeof token.raw === 'string' ? token.raw : '';
+        const start = offset;
+        const end = start + raw.length;
+        const html = markedRef.parser([token]);
+        if (html !== '') {
+            chunks.push(`<div class="md-source-block" data-md-start="${start}" data-md-end="${end}">${html}</div>`);
+        }
+        offset = end;
+    });
+
+    if (chunks.length === 0) {
+        return markedRef.parse(markdownText);
+    }
+
+    return chunks.join('');
+}
+
+function scrollTextareaToOffset(textarea, offset) {
+    const value = String(textarea.value || '');
+    const safeOffset = Math.max(0, Math.min(value.length, offset));
+    const before = value.slice(0, safeOffset);
+    const line = before.split('\n').length - 1;
+    const styles = window.getComputedStyle(textarea);
+    const fontSize = Number.parseFloat(styles.fontSize) || 15;
+    const lineHeight = Number.parseFloat(styles.lineHeight) || fontSize * 1.6;
+    const target = Math.max(0, line * lineHeight - textarea.clientHeight * 0.3);
+    textarea.scrollTop = target;
+}
+
+export function syncEditorCaretFromPreviewClick(event) {
+    if (!state.currentDocPath) {
+        return;
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+        return;
+    }
+
+    const block = target.closest('[data-md-start]');
+    if (!block) {
+        return;
+    }
+
+    const start = Number.parseInt(String(block.getAttribute('data-md-start') || ''), 10);
+    const end = Number.parseInt(String(block.getAttribute('data-md-end') || ''), 10);
+    if (!Number.isFinite(start)) {
+        return;
+    }
+
+    const textarea = document.getElementById('doc-content');
+    if (!(textarea instanceof HTMLTextAreaElement)) {
+        return;
+    }
+
+    const value = String(textarea.value || '');
+    let offset = Math.max(0, Math.min(value.length, start));
+
+    if (Number.isFinite(end) && end > start) {
+        const rect = block.getBoundingClientRect();
+        if (rect.height > 0) {
+            const rawRatio = (event.clientY - rect.top) / rect.height;
+            const ratio = Math.max(0, Math.min(1, rawRatio));
+            const estimate = start + Math.floor((end - start) * ratio);
+            offset = Math.max(0, Math.min(value.length, estimate));
+        }
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset);
+    scrollTextareaToOffset(textarea, offset);
 }

@@ -1,5 +1,5 @@
 import { remapMovedPath, renameDocWithPath, renameFolderWithPath, renameImageWithPath } from './markdown_actions.js';
-import { clearEditor, configureMarkdownEditorModule, estimateDropIndexFromPointer, hasImageFile, insertUploadedImages, loadDoc, loadImagePreview, refreshEditorFilename, renderMarkdownPreview, scheduleSave } from './markdown_editor.js';
+import { clearEditor, configureMarkdownEditorModule, estimateDropIndexFromPointer, hasImageFile, insertUploadedImages, loadDoc, loadImagePreview, refreshEditorFilename, renderMarkdownPreview, scheduleSave, syncEditorCaretFromPreviewClick } from './markdown_editor.js';
 import { configureMarkdownTreeModule, expandAncestors, renderFileTree } from './markdown_tree.js';
 import { baseName } from './utils.js';
 import { confirmDeleteSelection, hideConfirmPanel, hideQuickAction, openQuickAction, submitQuickAction } from './markdown/quick_actions.js';
@@ -76,11 +76,18 @@ export function setupMarkdownView() {
 
     const contentInput = document.getElementById('doc-content');
     const imageFileInput = document.getElementById('image-file-input');
+    const preview = document.getElementById('doc-preview');
 
     contentInput.addEventListener('input', () => {
         scheduleSave();
         renderMarkdownPreview(contentInput.value);
     });
+
+    if (preview) {
+        preview.addEventListener('click', (event) => {
+            syncEditorCaretFromPreviewClick(event);
+        });
+    }
 
     if (imageFileInput) {
         imageFileInput.addEventListener('change', () => {
